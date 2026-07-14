@@ -7,6 +7,9 @@ node_modules/
 .next/
 out/
 
+# Local AI assistant configuration
+.claude/
+
 # Expo
 .expo/
 dist/
