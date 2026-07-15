@@ -120,9 +120,6 @@ export default function LandingExperience() {
           <a href="#workflow">Workflow</a>
           <ThemeToggle />
           <Link className="nav-login" href="/auth">Log in</Link>
-          <Link className="primary landing-cta" href="/auth?mode=signup">
-            Sign in <ArrowRight size={15} />
-          </Link>
         </div>
       </nav>
 
@@ -141,8 +138,8 @@ export default function LandingExperience() {
             workspace engineered to keep you in flow.
           </p>
           <div className="hero-actions">
-            <Link className="hero-primary" href="/auth?mode=signup">
-              Sign in to RequestLab <ArrowRight size={18} />
+            <Link className="hero-primary" href="/auth">
+              Get started <ArrowRight size={18} />
             </Link>
             <a className="hero-secondary" href="#platform">
               Explore the platform <ChevronRight size={16} />
