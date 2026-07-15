@@ -9,5 +9,7 @@ export default async function WorkspacePage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/auth');
-  return <ApiClient userId={user.id} userEmail={user.email ?? 'Account'} />;
+  const apps = Array.isArray(user.app_metadata?.apps) ? user.app_metadata.apps : [];
+  if (!apps.includes('requestlab') && !user.app_metadata?.requestlab_role) redirect('/choose-app');
+  return <ApiClient userId={user.id} userEmail={user.email ?? 'Account'} isAdmin={user.app_metadata?.requestlab_role === 'admin'} />;
 }

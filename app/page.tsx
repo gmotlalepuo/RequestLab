@@ -1,16 +1,5 @@
-import Link from 'next/link';
-import { ArrowRight, Braces, Layers3, LockKeyhole, Send, ShieldCheck, Zap } from 'lucide-react';
-import BrandLogo from '@/components/BrandLogo';
-import ThemeToggle from '@/components/ThemeToggle';
+import LandingExperience from "@/components/LandingExperience";
 
 export default function LandingPage() {
-  return <main className="landing">
-    <nav className="landing-nav"><Link className="brand dark" href="/" aria-label="RequestLab home"><BrandLogo /></Link><div><ThemeToggle/><a href="#features">Features</a><Link className="nav-login" href="/auth">Log in</Link><Link className="primary landing-cta" href="/auth?mode=signup">Get started</Link></div></nav>
-    <section className="hero"><div className="hero-copy"><span className="hero-pill"><Zap size={14} /> Built for focused API work</span><h1>APIs move fast.<br/><em>Keep up.</em></h1><p>Build, organize, send, and inspect HTTP requests in a workspace that stays out of your way—on desktop or in your pocket.</p><div className="hero-actions"><Link className="hero-primary" href="/auth?mode=signup">Start building free <ArrowRight size={18} /></Link><a className="hero-secondary" href="#features">See how it works</a></div><span className="hero-note"><ShieldCheck size={15} /> Your data is isolated with Supabase row-level security.</span></div><div className="hero-visual" aria-label="API request builder preview"><div className="preview-window"><div className="preview-top"><i/><i/><i/><span>Customer API</span></div><div className="preview-request"><b>GET</b><span>api.example.com/v1/customers</span><button>Send</button></div><div className="preview-tabs"><strong>Params</strong><span>Headers</span><span>Body</span><span>Auth</span></div><div className="preview-code"><span><i>status</i><b>: 200</b>,</span><span><i>customers</i>: [</span><span>&nbsp;&nbsp;{'{'} <i>name</i>: <b>&quot;Avery Stone&quot;</b> {'}'}</span><span>]</span></div><div className="preview-meta"><span className="success-text">200 OK</span><span>184 ms</span><span>1.8 KB</span></div></div></div></section>
-    <section className="trust-line"><span>One workspace for the whole API lifecycle</span></section>
-    <section className="feature-section" id="features"><div className="section-intro"><span className="eyebrow">Everything you need</span><h2>From first request to final response.</h2><p>A clean, capable tool for developers who value speed and clarity.</p></div><div className="feature-grid"><Feature icon={<Send/>} title="Send anything" text="Methods, query parameters, headers, bodies, and authentication in one focused request builder."/><Feature icon={<Layers3/>} title="Stay organized" text="Private workspaces, collections, and nested folders keep every endpoint easy to find."/><Feature icon={<Braces/>} title="Inspect clearly" text="Read formatted responses, status, timing, size, and headers without fighting visual clutter."/><Feature icon={<LockKeyhole/>} title="Private by default" text="Authentication and database policies ensure each account can only access its own workspaces."/></div></section>
-    <footer><Link className="brand dark" href="/" aria-label="RequestLab home"><BrandLogo /></Link><span>Purpose-built for better API work.</span></footer>
-  </main>;
+  return <LandingExperience />;
 }
-
-function Feature({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) { return <article className="feature-card"><span>{icon}</span><h3>{title}</h3><p>{text}</p></article>; }

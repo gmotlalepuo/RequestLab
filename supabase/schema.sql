@@ -278,3 +278,42 @@ for all to authenticated using (collection_id in (
 
 -- For an upgraded database, resolve null legacy owners before enabling this:
 -- alter table postman_workspaces alter column user_id set not null;
+
+-- Administrator-managed support inbox.
+create table if not exists postman_complaints (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  user_email text not null default '',
+  subject text not null,
+  message text not null,
+  status text not null default 'open' check (status in ('open', 'in_progress', 'resolved')),
+  admin_response text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists postman_complaints_user_id_idx on postman_complaints (user_id);
+create index if not exists postman_complaints_status_created_idx on postman_complaints (status, created_at desc);
+
+alter table postman_complaints enable row level security;
+drop policy if exists "users view own complaints" on postman_complaints;
+drop policy if exists "users create own complaints" on postman_complaints;
+drop policy if exists "admins manage complaints" on postman_complaints;
+create policy "users view own complaints" on postman_complaints
+for select to authenticated using ((select auth.uid()) = user_id);
+create policy "users create own complaints" on postman_complaints
+for insert to authenticated with check ((select auth.uid()) = user_id);
+create policy "admins manage complaints" on postman_complaints
+for all to authenticated using (
+  coalesce((select auth.jwt() -> 'app_metadata' ->> 'requestlab_role'), '') = 'admin'
+) with check (
+  coalesce((select auth.jwt() -> 'app_metadata' ->> 'requestlab_role'), '') = 'admin'
+);
+
+-- This Supabase project is shared with Bermuda. Skip Bermuda's general profile
+-- trigger for accounts explicitly created for RequestLab.
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+after insert on auth.users
+for each row
+when (coalesce(new.raw_user_meta_data ->> 'app', 'bermuda') <> 'requestlab')
+execute function public.handle_new_user();

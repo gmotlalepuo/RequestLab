@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   Box,
   ChevronDown,
@@ -25,6 +26,7 @@ import {
   Star,
   Upload,
   UserRound,
+  UserCog,
   Users,
   X,
 } from "lucide-react";
@@ -147,6 +149,24 @@ const sourceJsonTokens = (value: string) => {
   }
   if (cursor < value.length) result.push(value.slice(cursor));
   return result;
+};
+const requestVariableNames = (request: ApiRequest) => {
+  const values = [
+    request.url,
+    request.bodyRaw,
+    ...request.params.flatMap((item) => [item.key, item.value]),
+    ...request.headers.flatMap((item) => [item.key, item.value]),
+    ...request.bodyForm.flatMap((item) => [item.key, item.value]),
+    request.auth.bearerToken ?? "",
+    request.auth.basicUsername ?? "",
+    request.auth.basicPassword ?? "",
+  ];
+  const names = new Set<string>();
+  values.forEach((value) => {
+    for (const match of value.matchAll(/\{\{\s*([^{}]+?)\s*\}\}/g))
+      names.add(match[1]);
+  });
+  return [...names];
 };
 const bytes = (n: number) =>
   n < 1024
@@ -332,9 +352,11 @@ function GeneratedHeaders() {
 export default function ApiClient({
   userId,
   userEmail,
+  isAdmin = false,
 }: {
   userId: string;
   userEmail: string;
+  isAdmin?: boolean;
 }) {
   const configured = isSupabaseConfigured();
   const repo = configured ? getRepository() : null;
@@ -641,6 +663,37 @@ export default function ApiClient({
       setError((e as Error).message);
     }
   };
+  const updateEnvironmentVariable = async (key: string, value: string) => {
+    if (!repo) return;
+    const environment = environments.find(
+      (item) => item.id === activeEnvironmentId,
+    );
+    if (!environment) {
+      setError("Select an environment first.");
+      return;
+    }
+    const existing = environment.variables.find((item) => item.key === key);
+    const updated = {
+      ...environment,
+      variables: existing
+        ? environment.variables.map((item) =>
+            item.id === existing.id ? { ...item, value, enabled: true } : item,
+          )
+        : [
+            ...environment.variables,
+            { id: newId(), key, value, enabled: true },
+          ],
+    };
+    try {
+      await repo.updateEnvironment(updated);
+      setEnvironments((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item)),
+      );
+      notify(`Updated {{${key}}}`);
+    } catch (cause) {
+      setError((cause as Error).message);
+    }
+  };
   const createRequestAt = async (
     targetCollection: Collection,
     targetFolderId: string | null,
@@ -794,6 +847,17 @@ export default function ApiClient({
   const folderTrail = (() => {
     const trail: FolderType[] = [];
     let id = folderId;
+    while (id) {
+      const item = folders.find((candidate) => candidate.id === id);
+      if (!item) break;
+      trail.unshift(item);
+      id = item.parentFolderId;
+    }
+    return trail;
+  })();
+  const requestFolderTrail = (() => {
+    const trail: FolderType[] = [];
+    let id = request?.folderId ?? null;
     while (id) {
       const item = folders.find((candidate) => candidate.id === id);
       if (!item) break;
@@ -1007,6 +1071,21 @@ export default function ApiClient({
         <div className="brand">
           <BrandLogo />
         </div>
+        <div className="workbench-context" aria-label="Current location">
+          <span className="workbench-product">API Workbench</span>
+          {workspace && (
+            <>
+              <ChevronRight size={13} />
+              <strong>{workspace.name}</strong>
+            </>
+          )}
+          {collection && (
+            <>
+              <ChevronRight size={13} />
+              <span>{collection.name}</span>
+            </>
+          )}
+        </div>
         <div className="top-actions">
           {workspace && collection && (
             <div className="environment-picker">
@@ -1032,6 +1111,10 @@ export default function ApiClient({
             </div>
           )}
           <ThemeToggle />
+          <Link className="top-link" href="/settings" title="Account settings">
+            <Settings2 size={16} /><span>Settings</span>
+          </Link>
+          {isAdmin && <Link className="top-link admin" href="/admin" title="Admin portal"><UserCog size={16}/><span>Admin</span></Link>}
           <span className="user-chip">
             <UserRound size={15} />
             <span>{userEmail}</span>
@@ -1456,8 +1539,15 @@ export default function ApiClient({
           {request ? (
             <>
               <div className="editor-head">
-                <div>
-                  <span className="eyebrow">Request</span>
+                <div className="request-heading">
+                  <div className="request-breadcrumbs" aria-label="Request location">
+                    <span>{collection?.name || "Collection"}</span>
+                    {requestFolderTrail.map((item) => (
+                      <span key={item.id}>
+                        <ChevronRight size={12} /> {item.name}
+                      </span>
+                    ))}
+                  </div>
                   <input
                     className="request-name"
                     aria-label="Request name"
@@ -1508,6 +1598,14 @@ export default function ApiClient({
                   {sending ? "Sending…" : "Send"}
                 </button>
               </div>
+              <EnvironmentVariableHints
+                names={requestVariableNames(request)}
+                environment={environments.find(
+                  (item) => item.id === activeEnvironmentId,
+                )}
+                onSave={updateEnvironmentVariable}
+                onManage={() => setEnvironmentsOpen(true)}
+              />
               <Tabs
                 labels={["Params", "Headers", "Body", "Auth"]}
                 value={requestTab}
@@ -1564,6 +1662,7 @@ export default function ApiClient({
                     }}
                   />
                   <div className="response-meta">
+                    <span className="response-title">Response</span>
                     <strong
                       className={
                         response.status < 400 ? "success-text" : "danger-text"
@@ -1684,6 +1783,110 @@ export default function ApiClient({
         </div>
       )}
     </main>
+  );
+}
+
+function EnvironmentVariableHints({
+  names,
+  environment,
+  onSave,
+  onManage,
+}: {
+  names: string[];
+  environment?: Environment;
+  onSave: (key: string, value: string) => Promise<void>;
+  onManage: () => void;
+}) {
+  if (!names.length) return null;
+  return (
+    <div className="variable-hints" aria-label="Variables used in request">
+      <span>Variables in request</span>
+      {names.map((name) => (
+        <VariableHint
+          key={name}
+          name={name}
+          value={
+            environment?.variables.find(
+              (item) => item.enabled && item.key === name,
+            )?.value ?? ""
+          }
+          configured={Boolean(
+            environment?.variables.some(
+              (item) => item.enabled && item.key === name,
+            ),
+          )}
+          onSave={onSave}
+          onManage={onManage}
+        />
+      ))}
+    </div>
+  );
+}
+
+function VariableHint({
+  name,
+  value,
+  configured,
+  onSave,
+  onManage,
+}: {
+  name: string;
+  value: string;
+  configured: boolean;
+  onSave: (key: string, value: string) => Promise<void>;
+  onManage: () => void;
+}) {
+  const [draft, setDraft] = useState(value);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => setDraft(value), [value]);
+  return (
+    <div className={`variable-hint ${configured ? "" : "missing"}`}>
+      <button className="variable-chip" aria-haspopup="dialog">
+        {`{{${name}}}`}
+      </button>
+      <div
+        className="variable-popover"
+        role="dialog"
+        aria-label={`Edit ${name}`}
+      >
+        <strong>{name}</strong>
+        <small>
+          {configured ? "Active environment value" : "Not configured"}
+        </small>
+        {configured ? (
+          <>
+            <input
+              aria-label={`${name} value`}
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+            />
+            <button
+              className="primary"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  await onSave(name, draft);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              {busy ? (
+                <LoaderCircle className="spin" size={14} />
+              ) : (
+                <Save size={14} />
+              )}
+              Save
+            </button>
+          </>
+        ) : (
+          <button className="secondary" onClick={onManage}>
+            <Settings2 size={14} /> Manage environments
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 
