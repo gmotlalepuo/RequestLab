@@ -1,7 +1,7 @@
-# Graph Report - BERZUDA  (2026-07-16)
+# Graph Report - BERZUDA  (2026-07-15)
 
 ## Corpus Check
-- 63 files · ~188,256 words
+- 63 files · ~188,064 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `a441e202`
+- Built from commit: `4b0d8156`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 

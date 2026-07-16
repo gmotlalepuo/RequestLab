@@ -462,7 +462,17 @@ export default function ApiClient({
   );
   const loadEnvironments = useCallback(
     async (id: string) => {
-      if (repo) setEnvironments(await repo.listEnvironments(id));
+      if (!repo) return;
+      const items = await repo.listEnvironments(id);
+      setEnvironments(items);
+      setActiveEnvironmentId((current) => {
+        if (current && items.some((item) => item.id === current)) return current;
+        const userAcceptanceTesting = items.find((item) => {
+          const name = item.name.trim().toLowerCase().replace(/\s+/g, " ");
+          return name === "user acceptance testing" || name === "uat";
+        });
+        return userAcceptanceTesting?.id ?? "";
+      });
     },
     [repo],
   );
@@ -544,7 +554,9 @@ export default function ApiClient({
     setCollectionsOpen(true);
     setExpandedCollections((current) => new Set(current).add(item.id));
     setExpandedFolders(new Set());
-    setMobilePanel(null);
+    setMobilePanel((current) =>
+      current === "collections" ? "collections" : null,
+    );
     await Promise.all([loadCollection(item.id), loadEnvironments(item.id)]);
   };
   const toggleCollection = async (item: Collection) => {
