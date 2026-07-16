@@ -4872,6 +4872,32 @@ html[data-theme="dark"] .app-shell {
   --app-divider-soft: color-mix(in srgb, var(--border) 8%, transparent);
 }
 
+/* Admin data workspace */
+.admin-tabs { display:flex; gap:4px; padding:4px; border:1px solid var(--border); border-radius:9px; background:var(--surface-2); }
+.admin-tabs button { min-height:42px; display:flex; align-items:center; gap:8px; padding:0 14px; border:0; border-radius:6px; background:transparent; color:var(--muted); font-weight:700; }
+.admin-tabs button.active { background:var(--surface); color:var(--brand-dark); box-shadow:0 1px 4px rgba(20,29,43,.08); }
+.admin-tabs svg { width:16px; }
+.admin-tabs button span { min-width:20px; padding:2px 6px; border-radius:999px; background:var(--brand-soft); font-size:10px; text-align:center; }
+.admin-data-toolbar { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+.admin-data-toolbar select { min-height:40px; padding:0 32px 0 10px; border:1px solid var(--border); border-radius:6px; background:var(--surface-2); color:var(--text); }
+.admin-search { min-width:min(100%,320px); flex:1; position:relative; margin:0!important; }
+.admin-search svg { position:absolute; left:11px; top:12px; width:16px; color:var(--muted); }
+.admin-search input { padding-left:36px!important; }
+.admin-sort { min-height:32px; display:inline-flex; align-items:center; gap:4px; padding:0; border:0; background:transparent; color:inherit; font-size:inherit; font-weight:inherit; }
+.admin-sort svg { width:13px; }
+.admin-row em { width:max-content; padding:2px 5px; border-radius:4px; background:#fdebee; color:#a61f34; font-size:9px; font-style:normal; }
+.admin-empty { padding:42px 16px; color:var(--muted); text-align:center; }
+.admin-pagination { display:flex; align-items:center; justify-content:space-between; gap:12px; padding-top:14px; color:var(--muted); font-size:11px; }
+.admin-pagination label,.admin-pagination div { display:flex; align-items:center; gap:7px; }
+.admin-pagination select { min-height:34px; border:1px solid var(--border); border-radius:6px; background:var(--surface-2); color:var(--text); }
+.admin-pagination button { width:34px; height:34px; display:grid; place-items:center; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text); }
+.admin-pagination button:disabled { opacity:.4; }
+.admin-pagination svg { width:15px; }
+.complaint-row { min-width:840px; display:grid; grid-template-columns:minmax(220px,1.4fr) minmax(190px,1fr) 110px 110px 80px; align-items:center; gap:14px; padding:11px 8px; border-bottom:1px solid var(--border); font-size:12px; }
+.complaint-row > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.complaint-table-item .complaint-editor { min-width:840px; margin:8px 0 14px; }
+@media(max-width:640px){.admin-tabs button{flex:1;justify-content:center;padding-inline:8px}.admin-data-toolbar{align-items:stretch;flex-direction:column}.admin-search{width:100%;min-width:0}.admin-pagination{align-items:flex-start;flex-wrap:wrap}.admin-pagination>div{width:100%;justify-content:space-between}}
+
 /* Phone headers prioritize task controls while preserving the brand mark. */
 @media (max-width: 640px) {
   .topbar {

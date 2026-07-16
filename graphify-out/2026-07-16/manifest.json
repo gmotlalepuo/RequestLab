@@ -50,8 +50,8 @@
     "semantic_hash": ""
   },
   "components/ApiClient.tsx": {
-    "mtime": 1784141874.247034,
-    "ast_hash": "4f1d3bd9f35211d015ec09d57fcd74db",
+    "mtime": 1784194374.5267005,
+    "ast_hash": "1d5837380e77ec65c54a65bc2fb2e525",
     "semantic_hash": ""
   },
   "components/AuthForm.tsx": {
@@ -340,8 +340,8 @@
     "semantic_hash": ""
   },
   "components/AdminPortal.tsx": {
-    "mtime": 1784142713.1363132,
-    "ast_hash": "84277f35fe2d1d664e6da20aa4346c6f",
+    "mtime": 1784196760.1035585,
+    "ast_hash": "a2442d54b300fa6d7abc2a6878692848",
     "semantic_hash": ""
   },
   "components/SettingsPortal.tsx": {

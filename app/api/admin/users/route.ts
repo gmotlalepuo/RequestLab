@@ -5,9 +5,16 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export async function GET() {
   const access = await requireAdmin();
   if (!access.user) return NextResponse.json({ error: access.error }, { status: access.status });
-  const { data, error } = await createAdminClient().auth.admin.listUsers({ page: 1, perPage: 200 });
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json({ users: data.users });
+  const admin = createAdminClient();
+  const users = [];
+  const perPage = 200;
+  for (let page = 1; ; page += 1) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    users.push(...data.users);
+    if (data.users.length < perPage) break;
+  }
+  return NextResponse.json({ users });
 }
 
 export async function POST(request: Request) {
