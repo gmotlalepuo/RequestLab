@@ -29,7 +29,7 @@ export default function AuthForm() {
         if (error) throw error;
         const { data: { user } } = await supabase.auth.getUser();
         const apps = Array.isArray(user?.app_metadata?.apps) ? user.app_metadata.apps : [];
-        const sharedAccount = apps.length > 1 || ["gmotlalepuo@gmail.com", "garenosi@26digitalbw.com"].includes((user?.email || "").toLowerCase());
+        const sharedAccount = apps.length > 1;
         window.location.assign(sharedAccount ? "/choose-app" : "/app");
       } else {
         const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/auth/callback?next=/auth` });

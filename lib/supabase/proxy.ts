@@ -31,7 +31,7 @@ export async function updateSession(request: NextRequest) {
   if (user && path === '/auth') {
     const url = request.nextUrl.clone();
     const apps = Array.isArray(user.app_metadata?.apps) ? user.app_metadata.apps : [];
-    const sharedAccount = apps.length > 1 || ['gmotlalepuo@gmail.com', 'garenosi@26digitalbw.com'].includes((user.email || '').toLowerCase());
+    const sharedAccount = apps.length > 1;
     url.pathname = sharedAccount ? '/choose-app' : '/app';
     url.search = '';
     return NextResponse.redirect(url);

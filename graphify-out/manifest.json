@@ -55,8 +55,8 @@
     "semantic_hash": ""
   },
   "components/AuthForm.tsx": {
-    "mtime": 1784142753.5000339,
-    "ast_hash": "5617d6be96292372174fe38ed01dc87a",
+    "mtime": 1784192660.1917715,
+    "ast_hash": "fab33a200d0b97d52956691560e33e7c",
     "semantic_hash": ""
   },
   "components/BrandLogo.tsx": {
@@ -90,8 +90,8 @@
     "semantic_hash": ""
   },
   "lib/supabase/proxy.ts": {
-    "mtime": 1784142753.5000339,
-    "ast_hash": "b95acb8cfadae57b25fb02df5218549e",
+    "mtime": 1784192660.1917715,
+    "ast_hash": "0163593c7a235a63331eba4de05164d6",
     "semantic_hash": ""
   },
   "lib/supabase/server.ts": {
@@ -360,8 +360,8 @@
     "semantic_hash": ""
   },
   "app/choose-app/page.tsx": {
-    "mtime": 1784142737.2667017,
-    "ast_hash": "6a06375f89aa840859668ac7199b072a",
+    "mtime": 1784192660.1917715,
+    "ast_hash": "eec6020da1e25cc0f41fb7ba23278793",
     "semantic_hash": ""
   }
 }

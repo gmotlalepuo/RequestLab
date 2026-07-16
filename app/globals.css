@@ -4818,3 +4818,186 @@ html[data-theme="dark"] .portal-alert.success { background: #12352d; color: #74d
 .app-choice-grid > a > svg { color: var(--brand); }
 .app-choice-disabled { opacity: .62; }
 @media(max-width:640px){.app-chooser>header{padding-inline:14px}.app-chooser>section{padding-top:65px}.app-chooser h1{font-size:35px}.app-choice-grid{grid-template-columns:1fr}}
+
+/* Quiet separators inside the authenticated API workbench. */
+.app-shell {
+  --app-divider: color-mix(in srgb, var(--border) 24%, transparent);
+  --app-divider-soft: color-mix(in srgb, var(--border) 10%, transparent);
+}
+.app-shell .topbar,
+.app-shell .panel-heading,
+.app-shell .content-bar,
+.app-shell .tabs,
+.app-shell .sidebar-footer,
+.app-shell .response-meta,
+.app-shell .header-line,
+.app-shell .people-modal > header,
+.app-shell .people-section + .people-section,
+.app-shell .invite-form {
+  border-color: var(--app-divider);
+}
+.app-shell .rail,
+.app-shell .sidebar,
+.app-shell .content,
+.app-shell .editor {
+  border-color: var(--app-divider-soft);
+}
+.app-shell .topbar {
+  box-shadow: none;
+}
+.app-shell .panel-heading,
+.app-shell .sidebar-footer {
+  background: color-mix(in srgb, var(--surface-2) 72%, var(--surface));
+}
+.app-shell .response {
+  border-top-color: var(--app-divider);
+}
+.app-shell .tabs button {
+  border-bottom-color: transparent;
+}
+.app-shell .tabs button.active {
+  border-bottom-color: color-mix(in srgb, var(--brand) 72%, transparent);
+}
+.app-shell .collections-resizer::after {
+  background: color-mix(in srgb, var(--border) 14%, transparent);
+}
+.app-shell .collections-resizer:hover::after,
+.app-shell .collections-resizer:focus-visible::after,
+.app-shell .response-resizer:hover::after,
+.app-shell .response-resizer:focus-visible::after {
+  background: color-mix(in srgb, var(--brand) 72%, transparent);
+}
+html[data-theme="dark"] .app-shell {
+  --app-divider: color-mix(in srgb, var(--border) 20%, transparent);
+  --app-divider-soft: color-mix(in srgb, var(--border) 8%, transparent);
+}
+
+/* Phone headers prioritize task controls while preserving the brand mark. */
+@media (max-width: 640px) {
+  .topbar {
+    gap: 4px;
+    padding-inline: 6px;
+  }
+  .topbar .brand {
+    flex: 0 0 38px;
+    min-width: 38px;
+  }
+  .mobile-menu {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+  }
+  .topbar .requestlab-logo.lockup,
+  .portal-header .requestlab-logo.lockup,
+  .app-chooser > header .requestlab-logo.lockup,
+  .landing-nav-next .requestlab-logo.lockup {
+    width: 38px;
+    height: 38px;
+    gap: 0;
+  }
+  .topbar .requestlab-wordmark,
+  .portal-header .requestlab-wordmark,
+  .app-chooser > header .requestlab-wordmark,
+  .landing-nav-next .requestlab-wordmark {
+    display: none;
+  }
+  .topbar .requestlab-mark,
+  .portal-header .requestlab-mark,
+  .app-chooser > header .requestlab-mark,
+  .landing-nav-next .requestlab-mark {
+    width: 34px;
+    height: 34px;
+  }
+  .top-actions {
+    min-width: 0;
+    flex: 1;
+    justify-content: flex-end;
+  }
+  .environment-picker {
+    min-width: 0;
+    max-width: 112px;
+    flex: 1 1 112px;
+  }
+  .environment-picker select {
+    min-width: 0;
+    width: 100%;
+    max-width: none;
+    text-overflow: ellipsis;
+  }
+  .environment-picker button {
+    flex: 0 0 34px;
+  }
+  .top-link,
+  .theme-toggle,
+  .logout {
+    width: 34px;
+    min-width: 34px;
+    padding-inline: 0;
+    justify-content: center;
+  }
+  .editor {
+    inset: 52px 0 calc(68px + env(safe-area-inset-bottom));
+  }
+  .mobile-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .portal-header nav {
+    min-width: 0;
+    gap: 4px;
+  }
+  .portal-header nav a {
+    min-width: 40px;
+    min-height: 44px;
+    justify-content: center;
+  }
+  .admin-wrap,
+  .portal-layout {
+    width: min(100% - 24px, 1240px);
+  }
+  .complaint-editor > div,
+  .complaint-list article > div {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 380px) {
+  .topbar {
+    gap: 2px;
+    padding-inline: 4px;
+  }
+  .topbar .brand {
+    flex-basis: 34px;
+    min-width: 34px;
+  }
+  .topbar .requestlab-logo.lockup,
+  .topbar .requestlab-mark {
+    width: 32px;
+    height: 32px;
+  }
+  .environment-picker {
+    max-width: 80px;
+  }
+  .top-link,
+  .theme-toggle,
+  .logout {
+    width: 32px;
+    min-width: 32px;
+  }
+  .app-choice-grid > a,
+  .app-choice-disabled {
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: 18px;
+  }
+  .app-choice-grid > a > svg {
+    display: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .topbar button,
+  .topbar a,
+  .mobile-bottom button {
+    touch-action: manipulation;
+  }
+}
