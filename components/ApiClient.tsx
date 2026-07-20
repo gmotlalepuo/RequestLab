@@ -4,6 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Box,
+  Bold,
+  Italic,
+  Underline,
+  List,
+  ListOrdered,
+  Quote,
+  Code2,
+  Link2,
   ChevronDown,
   ChevronRight,
   Clipboard,
@@ -2521,8 +2529,8 @@ function RichDocumentationEditor({ value, onChange }: { value: string; onChange:
   return <div className="rich-doc-editor">
     <div className="rich-doc-toolbar" role="toolbar" aria-label="Documentation formatting">
       <select aria-label="Text style" defaultValue="p" onChange={(event) => command("formatBlock", event.target.value)}><option value="p">Normal text</option><option value="h2">Heading 1</option><option value="h3">Heading 2</option><option value="h4">Heading 3</option></select>
-      <button type="button" aria-label="Bold" onClick={() => command("bold")}><strong>B</strong></button><button type="button" aria-label="Italic" onClick={() => command("italic")}><em>I</em></button><button type="button" aria-label="Underline" onClick={() => command("underline")}><u>U</u></button><span className="rich-doc-divider" />
-      <button type="button" onClick={() => command("insertUnorderedList")}>• List</button><button type="button" onClick={() => command("insertOrderedList")}>1. List</button><button type="button" onClick={() => command("formatBlock", "blockquote")}>Quote</button><button type="button" onClick={() => command("formatBlock", "pre")}>Code</button><button type="button" aria-label="Add link" onClick={link}>Link</button>
+      <button type="button" aria-label="Bold" title="Bold" onClick={() => command("bold")}><Bold size={15}/></button><button type="button" aria-label="Italic" title="Italic" onClick={() => command("italic")}><Italic size={15}/></button><button type="button" aria-label="Underline" title="Underline" onClick={() => command("underline")}><Underline size={15}/></button><span className="rich-doc-divider" />
+      <button type="button" aria-label="Bulleted list" title="Bulleted list" onClick={() => command("insertUnorderedList")}><List size={15}/></button><button type="button" aria-label="Numbered list" title="Numbered list" onClick={() => command("insertOrderedList")}><ListOrdered size={15}/></button><button type="button" aria-label="Quote" title="Quote" onClick={() => command("formatBlock", "blockquote")}><Quote size={15}/></button><button type="button" aria-label="Code block" title="Code block" onClick={() => command("formatBlock", "pre")}><Code2 size={15}/></button><button type="button" aria-label="Add link" title="Add link" onClick={() => void link()}><Link2 size={15}/></button>
     </div>
     <div ref={editorRef} className="rich-doc-content" contentEditable suppressContentEditableWarning role="textbox" aria-multiline="true" data-placeholder="Describe what this endpoint does, its parameters, authentication, examples, and expected responses..." onInput={(event) => onChange(event.currentTarget.innerHTML)} />
     {dialog}</div>;
