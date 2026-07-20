@@ -1746,7 +1746,14 @@ export default function ApiClient({
               )}
             </>
           ) : (
-            <Empty
+            collection ? <CollectionDocumentationView key={collection.id} collection={collection} onSave={async (description) => {
+              if (!repo) return;
+              const updated = { ...collection, description };
+              await repo.updateCollection(updated);
+              setCollection(updated);
+              setCollections((items) => items.map((item) => item.id === updated.id ? updated : item));
+              notify("Collection documentation saved");
+            }} /> : <Empty
               icon={<Settings2 />}
               title="Open a request"
               text="Select a request to edit and send it."
@@ -2534,6 +2541,13 @@ function RichDocumentationEditor({ value, onChange }: { value: string; onChange:
     </div>
     <div ref={editorRef} className="rich-doc-content" contentEditable suppressContentEditableWarning role="textbox" aria-multiline="true" data-placeholder="Describe what this endpoint does, its parameters, authentication, examples, and expected responses..." onInput={(event) => onChange(event.currentTarget.innerHTML)} />
     {dialog}</div>;
+}
+
+function CollectionDocumentationView({ collection, onSave }: { collection: Collection; onSave: (description: string) => Promise<void> }) {
+  const [content, setContent] = useState(collection.description || "");
+  const [saving, setSaving] = useState(false);
+  const save = async () => { setSaving(true); try { await onSave(content); } finally { setSaving(false); } };
+  return <div className="collection-docs-view"><div className="collection-docs-heading"><div><span className="eyebrow">Collection documentation</span><h2>{collection.name}</h2><p>Describe this API collection, its purpose, environments, authentication model, and endpoint groups.</p></div><button className="primary" disabled={saving} onClick={() => void save()}>{saving ? "Saving…" : "Save documentation"}</button></div><RichDocumentationEditor key={collection.id} value={content} onChange={setContent} /></div>;
 }
 
 function DocumentationEditor({

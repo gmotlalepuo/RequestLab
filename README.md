@@ -45,3 +45,8 @@ Email/password signup, login, email confirmation, password recovery, and logout 
 Workspace owners can invite an email address from the people panel. The invitee must log in using that exact address and explicitly accept the pending request before membership and workspace access are granted. Owners can revoke pending invitations or remove existing members.
 
 Existing unprefixed tables are not modified or queried. If upgrading an earlier prefixed schema, assign or delete workspaces whose `user_id` is null, then run the final `NOT NULL` statement documented at the bottom of `supabase/schema.sql`.
+
+## Product documentation
+
+- [Technical documentation](docs/TECHNICAL_DOCUMENTATION.md) — architecture, security, data model, deployment, and operations.
+- [Business and investor brief](docs/BUSINESS_AND_INVESTOR_DOCUMENTATION.md) — capabilities, organizational benefits, use cases, commercial opportunities, and roadmap.

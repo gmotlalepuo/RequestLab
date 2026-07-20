@@ -24,7 +24,11 @@
 }
 
 .documentation-modal { width:min(900px,calc(100% - 28px)); max-height:min(780px,calc(100dvh - 32px)); display:grid; grid-template-rows:auto 1fr auto; overflow:hidden; border:1px solid var(--border); border-radius:16px; background:var(--surface); box-shadow:0 24px 80px rgba(8,15,30,.28); }
-.endpoint-docs-panel { display:grid; gap:14px; padding:18px; min-height:320px; }
+.endpoint-docs-panel { display:grid; gap:14px; padding:18px; min-height:320px; max-height:calc(100dvh - 250px); overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; }
+.collection-docs-view { display:grid; gap:18px; padding:28px 34px; max-width:1000px; max-height:calc(100dvh - 150px); overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; }
+.collection-docs-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; }
+.collection-docs-heading h2 { margin:4px 0 6px; font-size:25px; letter-spacing:-.02em; }
+.collection-docs-heading p { margin:0; max-width:640px; color:var(--muted); font-size:13px; line-height:1.55; }
 .endpoint-docs-toolbar { display:flex; align-items:center; justify-content:space-between; gap:14px; }
 .endpoint-docs-toolbar h3 { margin:3px 0 0; font-size:18px; }
 .endpoint-docs-toolbar .primary { border:0; box-shadow:none; outline:0; }
@@ -4691,6 +4695,42 @@ html[data-theme="dark"] .landing-final {
 @media (pointer: coarse) {
   .cursor-aura { display: none; }
   .hero-tech-scene { transform: none; }
+}
+
+/* Final control cleanup: keep action buttons visually flat across themes. */
+.primary,
+.secondary,
+.send,
+.icon-button,
+.theme-toggle,
+.editor-actions button,
+.endpoint-docs-toolbar .primary {
+  border: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  appearance: none;
+  background-image: none !important;
+}
+.mobile-add,
+.tree-create-actions button,
+.toolbar button,
+.topbar button {
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background-image: none !important;
+}
+.send { border-left: 0 !important; }
+.app-shell .primary,
+.app-shell .send,
+.app-shell .mobile-add,
+.app-shell .tree-create-actions button {
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent) !important;
+}
+.app-shell .secondary,
+.app-shell .icon-button,
+.app-shell .theme-toggle {
+  border: 1px solid var(--border) !important;
 }
 
 /* Shared accessible dialogs replace browser prompts across the workbench. */
