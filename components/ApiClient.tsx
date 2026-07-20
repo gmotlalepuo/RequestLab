@@ -1637,7 +1637,7 @@ export default function ApiClient({
                 {requestTab === "Docs" && (
                   <div className="endpoint-docs-panel">
                     <div className="endpoint-docs-toolbar"><div><span className="eyebrow">Endpoint documentation</span><h3>How does this endpoint work?</h3></div><button className="primary" onClick={() => void save()}>Save documentation</button></div>
-                    <RichDocumentationEditor value={request.documentation || ""} onChange={(documentation) => setRequest({ ...request, documentation })} />
+                    <RichDocumentationEditor key={request.id} value={request.documentation || ""} onChange={(documentation) => setRequest({ ...request, documentation })} />
                     <p className="muted">Use headings, bullets, code blocks, example URLs, and expected responses. Documentation is saved with this request.</p>
                   </div>
                 )}
