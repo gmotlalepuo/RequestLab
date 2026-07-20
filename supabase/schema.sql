@@ -35,10 +35,35 @@ alter table postman_workspace_invites add column if not exists workspace_name te
 create table if not exists postman_collections (
   id uuid primary key,
   workspace_id uuid not null references postman_workspaces (id) on delete cascade,
+  created_by uuid not null default auth.uid() references auth.users (id) on delete restrict,
   name text not null,
   description text not null default '',
   created_at timestamptz not null default now()
 );
+alter table postman_collections add column if not exists created_by uuid references auth.users (id) on delete restrict;
+alter table postman_collections alter column created_by set default auth.uid();
+update postman_collections c
+set created_by = w.user_id
+from postman_workspaces w
+where c.workspace_id = w.id and c.created_by is null and w.user_id is not null;
+create index if not exists postman_collections_created_by_idx on postman_collections (created_by);
+
+create or replace function public.postman_preserve_collection_creator()
+returns trigger language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.created_by is distinct from old.created_by then
+    raise exception 'Collection creator cannot be changed';
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists postman_preserve_collection_creator_trigger on postman_collections;
+create trigger postman_preserve_collection_creator_trigger
+before update on postman_collections
+for each row execute function public.postman_preserve_collection_creator();
+revoke all on function public.postman_preserve_collection_creator() from public;
 
 create table if not exists postman_environments (
   id uuid primary key,
@@ -55,16 +80,19 @@ create table if not exists postman_folders (
   collection_id uuid not null references postman_collections (id) on delete cascade,
   parent_folder_id uuid references postman_folders (id) on delete cascade,
   name text not null,
+  description text not null default '',
   is_starred boolean not null default false,
   created_at timestamptz not null default now()
 );
 alter table postman_folders add column if not exists is_starred boolean not null default false;
+alter table postman_folders add column if not exists description text not null default '';
 
 create table if not exists postman_requests (
   id uuid primary key,
   collection_id uuid not null references postman_collections (id) on delete cascade,
   folder_id uuid references postman_folders (id) on delete cascade,
   name text not null,
+  documentation text not null default '',
   method text not null default 'GET',
   url text not null default '',
   params jsonb not null default '[]'::jsonb,
@@ -75,6 +103,7 @@ create table if not exists postman_requests (
   auth jsonb not null default '{"type":"none"}'::jsonb,
   created_at timestamptz not null default now()
 );
+alter table postman_requests add column if not exists documentation text not null default '';
 
 create index if not exists postman_workspaces_user_id_idx on postman_workspaces (user_id);
 create index if not exists postman_members_user_id_idx on postman_workspace_members (user_id);
@@ -83,7 +112,55 @@ create index if not exists postman_collections_workspace_id_idx on postman_colle
 create index if not exists postman_environments_workspace_id_idx on postman_environments (workspace_id);
 create index if not exists postman_environments_collection_id_idx on postman_environments (collection_id);
 create index if not exists postman_folders_collection_id_idx on postman_folders (collection_id);
+create index if not exists postman_folders_parent_folder_id_idx on postman_folders (parent_folder_id);
 create index if not exists postman_requests_collection_id_idx on postman_requests (collection_id);
+create index if not exists postman_requests_folder_id_idx on postman_requests (folder_id);
+
+-- Keep folder trees and requests inside their declared collection.
+create or replace function public.postman_validate_folder_hierarchy()
+returns trigger language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.parent_folder_id is null then return new; end if;
+  if new.parent_folder_id = new.id then raise exception 'A folder cannot contain itself'; end if;
+  if not exists (
+    select 1 from public.postman_folders parent
+    where parent.id = new.parent_folder_id and parent.collection_id = new.collection_id
+  ) then raise exception 'Parent folder must belong to the same collection'; end if;
+  if exists (
+    with recursive descendants as (
+      select id from public.postman_folders where parent_folder_id = new.id
+      union
+      select child.id from public.postman_folders child join descendants d on child.parent_folder_id = d.id
+    ) select 1 from descendants where id = new.parent_folder_id
+  ) then raise exception 'Folder hierarchy cannot contain a cycle'; end if;
+  return new;
+end;
+$$;
+drop trigger if exists postman_validate_folder_hierarchy_trigger on postman_folders;
+create trigger postman_validate_folder_hierarchy_trigger
+before insert or update of collection_id, parent_folder_id on postman_folders
+for each row execute function public.postman_validate_folder_hierarchy();
+
+create or replace function public.postman_validate_request_folder()
+returns trigger language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.folder_id is not null and not exists (
+    select 1 from public.postman_folders folder
+    where folder.id = new.folder_id and folder.collection_id = new.collection_id
+  ) then raise exception 'Request folder must belong to the same collection'; end if;
+  return new;
+end;
+$$;
+drop trigger if exists postman_validate_request_folder_trigger on postman_requests;
+create trigger postman_validate_request_folder_trigger
+before insert or update of collection_id, folder_id on postman_requests
+for each row execute function public.postman_validate_request_folder();
+revoke all on function public.postman_validate_folder_hierarchy() from public;
+revoke all on function public.postman_validate_request_folder() from public;
 
 -- Membership helpers bypass membership-table RLS without exposing its rows.
 create or replace function public.postman_has_workspace_access(target_workspace_id uuid)
@@ -244,9 +321,26 @@ create policy "owners update invites" on postman_workspace_invites
 for update to authenticated using ((select public.postman_is_workspace_owner(workspace_id)))
 with check ((select public.postman_is_workspace_owner(workspace_id)));
 
-create policy "members manage collections" on postman_collections
-for all to authenticated using ((select public.postman_has_workspace_access(workspace_id)))
+drop policy if exists "members view collections" on postman_collections;
+drop policy if exists "members create collections" on postman_collections;
+drop policy if exists "members update collections" on postman_collections;
+drop policy if exists "creators delete collections" on postman_collections;
+create policy "members view collections" on postman_collections
+for select to authenticated using ((select public.postman_has_workspace_access(workspace_id)));
+create policy "members create collections" on postman_collections
+for insert to authenticated with check (
+  (select public.postman_has_workspace_access(workspace_id))
+  and created_by = (select auth.uid())
+);
+create policy "members update collections" on postman_collections
+for update to authenticated using ((select public.postman_has_workspace_access(workspace_id)))
 with check ((select public.postman_has_workspace_access(workspace_id)));
+create policy "creators delete collections" on postman_collections
+for delete to authenticated using (
+  created_by = (select auth.uid())
+  or (select public.postman_is_workspace_owner(workspace_id))
+  or coalesce((select auth.jwt() -> 'app_metadata' ->> 'requestlab_role'), '') = 'admin'
+);
 create policy "members manage environments" on postman_environments
 for all to authenticated using (
   (select public.postman_has_workspace_access(workspace_id))

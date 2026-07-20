@@ -22,6 +22,30 @@
   color: var(--text);
   background: var(--bg);
 }
+
+.documentation-modal { width:min(900px,calc(100% - 28px)); max-height:min(780px,calc(100dvh - 32px)); display:grid; grid-template-rows:auto 1fr auto; overflow:hidden; border:1px solid var(--border); border-radius:16px; background:var(--surface); box-shadow:0 24px 80px rgba(8,15,30,.28); }
+.endpoint-docs-panel { display:grid; gap:14px; padding:18px; min-height:320px; }
+.endpoint-docs-toolbar { display:flex; align-items:center; justify-content:space-between; gap:14px; }
+.endpoint-docs-toolbar h3 { margin:3px 0 0; font-size:18px; }
+.endpoint-docs-panel textarea { min-height:300px; width:100%; resize:vertical; padding:16px; border:1px solid var(--border); border-radius:10px; background:var(--surface-2); color:var(--text); font:13px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace; }
+.rich-doc-editor { display:grid; min-height:320px; border:1px solid var(--border); border-radius:10px; overflow:hidden; background:var(--surface-2); }
+.rich-doc-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:4px; padding:6px; border-bottom:1px solid var(--border); background:var(--surface); }
+.rich-doc-toolbar select,.rich-doc-toolbar button { min-height:30px; border:0; border-radius:5px; padding:0 8px; background:transparent; color:var(--text); font-size:12px; }
+.rich-doc-toolbar select { border-right:1px solid var(--border); }
+.rich-doc-toolbar button:hover,.rich-doc-toolbar button:focus-visible { background:var(--brand-soft); }
+.rich-doc-divider { width:1px; height:20px; background:var(--border); margin:0 3px; }
+.rich-doc-content { min-height:280px; padding:16px; outline:0; color:var(--text); font-size:13px; line-height:1.65; overflow:auto; }
+.rich-doc-content:empty::before { content:attr(data-placeholder); color:var(--muted); pointer-events:none; }
+.rich-doc-content h2,.rich-doc-content h3,.rich-doc-content h4 { margin:14px 0 6px; line-height:1.25; }
+.rich-doc-content p { margin:0 0 8px; }.rich-doc-content pre { padding:10px; overflow:auto; border-radius:6px; background:var(--surface-3); font-family:ui-monospace,monospace; }.rich-doc-content blockquote { margin:10px 0; padding-left:12px; border-left:3px solid var(--brand); color:var(--muted); }
+.documentation-modal>header,.documentation-modal>footer { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:20px 22px; border-bottom:1px solid var(--border); }
+.documentation-modal>header p { margin:6px 0 0; color:var(--muted); font-size:13px; }
+.documentation-modal>footer { align-items:center; justify-content:flex-end; border-top:1px solid var(--border); border-bottom:0; }
+.documentation-editor { min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 220px; gap:16px; padding:18px 22px; }
+.documentation-editor textarea { min-height:380px; width:100%; resize:vertical; padding:16px; border:1px solid var(--border); border-radius:10px; background:var(--surface-2); color:var(--text); font:13px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace; }
+.documentation-editor aside { display:grid; align-content:start; gap:10px; padding:14px; border:1px solid var(--border); border-radius:10px; background:var(--surface-2); color:var(--muted); font-size:12px; line-height:1.5; }
+.documentation-editor aside strong { color:var(--text); font-size:13px; }
+@media(max-width:700px){.documentation-editor{grid-template-columns:1fr}.documentation-editor aside{display:none}.documentation-editor textarea{min-height:300px}}
 * {
   box-sizing: border-box;
 }
@@ -4664,6 +4688,31 @@ html[data-theme="dark"] .landing-final {
 @media (pointer: coarse) {
   .cursor-aura { display: none; }
   .hero-tech-scene { transform: none; }
+}
+
+/* Shared accessible dialogs replace browser prompts across the workbench. */
+.app-dialog-scrim { z-index: 400; padding: 20px; }
+.app-dialog { width: min(440px, 100%); margin: auto; padding: 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); box-shadow: 0 24px 70px rgba(7, 26, 61, .22); }
+.app-dialog > header { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: start; }
+.app-dialog h2 { margin: 0; font-size: 18px; letter-spacing: -.02em; }
+.app-dialog p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.app-dialog label { display: grid; gap: 7px; margin-top: 18px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.app-dialog input,.app-dialog select { min-height: 44px; width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); color: var(--text); font: inherit; }
+.app-dialog > footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+.app-dialog > footer button { min-height: 44px; padding-inline: 18px; }
+.dialog-icon { width: 24px; min-height: 24px; color: var(--muted); }
+.dialog-icon.destructive { color: var(--danger); }
+.dialog-icon svg { width: 20px; height: 20px; }
+.danger-button { border: 0; border-radius: 7px; background: var(--danger); color: #fff; font-weight: 750; }
+
+@media (max-width: 640px) {
+  .app-dialog-scrim { align-items: flex-end; padding: 12px; }
+  .app-dialog { margin: auto 0 0; border-radius: 14px; padding: 18px; }
+}
+
+@media (pointer: coarse) {
+  .app-shell .icon-button,.app-shell .tree-menu summary,.app-shell .tree-star,.portal-page button,.portal-page a,.portal-page select,.portal-page input { min-height: 44px; }
+  .app-shell .icon-button,.app-shell .tree-star { min-width: 44px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .cursor-aura,

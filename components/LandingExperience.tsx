@@ -119,7 +119,6 @@ export default function LandingExperience() {
           <a href="#platform">Platform</a>
           <a href="#workflow">Workflow</a>
           <ThemeToggle />
-          <Link className="nav-login" href="/auth">Log in</Link>
         </div>
       </nav>
 
@@ -160,7 +159,7 @@ export default function LandingExperience() {
           onPointerLeave={resetGlobe}
         >
           <Image
-            src="/requestlab-api-constellation.png"
+            src="/requestlab-api-constellation.webp"
             alt="Interactive constellation globe surrounded by API endpoint requests"
             fill
             priority
@@ -234,8 +233,8 @@ export default function LandingExperience() {
           <span className="section-kicker">Ready when you are</span>
           <h2>Give your APIs a better place to live.</h2>
         </div>
-        <Link className="hero-primary" href="/auth?mode=signup">
-          Sign in to your workspace <ArrowRight size={18} />
+        <Link className="hero-primary" href="/auth">
+          Get started <ArrowRight size={18} />
         </Link>
       </section>
 
@@ -244,7 +243,7 @@ export default function LandingExperience() {
           <BrandLogo />
         </Link>
         <span>Purpose-built for better API work.</span>
-        <Link href="/auth">Sign in <ArrowRight size={14} /></Link>
+        <Link href="/auth">Get started <ArrowRight size={14} /></Link>
       </footer>
     </main>
   );

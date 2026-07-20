@@ -53,6 +53,7 @@ import type { Repository } from "@/src/data/repository";
 import BrandLogo from "./BrandLogo";
 import WorkspacePeople, { PendingInvites } from "./WorkspacePeople";
 import ThemeToggle from "./ThemeToggle";
+import { useAppDialog } from "./AppDialog";
 
 const methods: HttpMethod[] = [
   "GET",
@@ -358,6 +359,7 @@ export default function ApiClient({
   userEmail: string;
   isAdmin?: boolean;
 }) {
+  const { ask, confirm: confirmDialog, dialog } = useAppDialog();
   const configured = isSupabaseConfigured();
   const repo = configured ? getRepository() : null;
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -369,7 +371,7 @@ export default function ApiClient({
   const [folderId, setFolderId] = useState<string | null>(null);
   const [request, setRequest] = useState<ApiRequest | null>(null);
   const [requestTab, setRequestTab] = useState<
-    "Params" | "Headers" | "Body" | "Auth"
+    "Docs" | "Params" | "Headers" | "Body" | "Auth"
   >("Params");
   const [responseTab, setResponseTab] = useState<"Body" | "Headers">("Body");
   const [response, setResponse] = useState<ApiResponse | null>(null);
@@ -391,6 +393,7 @@ export default function ApiClient({
   const [resourcePaneOpen, setResourcePaneOpen] = useState(true);
   const [collectionsWidth, setCollectionsWidth] = useState(310);
   const [curlOpen, setCurlOpen] = useState(false);
+  const [documentationTarget, setDocumentationTarget] = useState<Collection | FolderType | ApiRequest | null>(null);
   const [workspacesOpen, setWorkspacesOpen] = useState(true);
   const [collectionsOpen, setCollectionsOpen] = useState(true);
   const [expandedCollections, setExpandedCollections] = useState<Set<string>>(
@@ -583,7 +586,7 @@ export default function ApiClient({
     setMobilePanel(null);
   };
   const createWorkspace = async () => {
-    const name = prompt("Workspace name");
+    const name = await ask({ title: "New workspace", label: "Workspace name", placeholder: "e.g. Product API", confirmLabel: "Create workspace" });
     if (!name?.trim() || !repo) return;
     setBusyLabel("Creating workspace…");
     setError("");
@@ -591,6 +594,7 @@ export default function ApiClient({
       const item = {
         id: newId(),
         ownerId: userId,
+        ownerEmail: userEmail,
         name: name.trim(),
         createdAt: new Date().toISOString(),
       };
@@ -606,7 +610,7 @@ export default function ApiClient({
   };
   const createCollection = async () => {
     if (!workspace || !repo) return;
-    const name = prompt("Collection name");
+    const name = await ask({ title: "New collection", label: "Collection name", placeholder: "e.g. User service", confirmLabel: "Create collection" });
     if (!name?.trim()) return;
     setBusyLabel("Creating collection…");
     setError("");
@@ -616,6 +620,7 @@ export default function ApiClient({
         workspaceId: workspace.id,
         name: name.trim(),
         description: "",
+        createdBy: userId,
         createdAt: new Date().toISOString(),
       };
       await repo.createCollection(item);
@@ -633,7 +638,7 @@ export default function ApiClient({
     parentFolderId: string | null,
   ) => {
     if (!repo) return;
-    const name = prompt("Folder name");
+    const name = await ask({ title: "New folder", label: "Folder name", placeholder: "e.g. Authentication", confirmLabel: "Create folder" });
     if (!name?.trim()) return;
     setBusyLabel("Creating folder…");
     setError("");
@@ -643,6 +648,7 @@ export default function ApiClient({
         collectionId: targetCollection.id,
         parentFolderId,
         name: name.trim(),
+        description: "",
         isStarred: false,
         createdAt: new Date().toISOString(),
       });
@@ -711,7 +717,7 @@ export default function ApiClient({
     targetFolderId: string | null,
   ) => {
     if (!repo) return;
-    const name = prompt("Request name");
+    const name = await ask({ title: "New request", label: "Request name", placeholder: "e.g. Get current user", confirmLabel: "Create request" });
     if (!name?.trim()) return;
     setBusyLabel("Creating request…");
     setError("");
@@ -742,7 +748,7 @@ export default function ApiClient({
     item: Workspace | Collection | FolderType | ApiRequest,
   ) => {
     if (!repo) return;
-    const name = prompt(`Rename ${kind}`, item.name);
+    const name = await ask({ title: `Rename ${kind}`, label: "Name", initialValue: item.name, confirmLabel: "Rename" });
     if (!name?.trim()) return;
     if (kind === "workspace") {
       await repo.updateWorkspace({ ...(item as Workspace), name });
@@ -770,8 +776,9 @@ export default function ApiClient({
     kind: "workspace" | "collection" | "folder" | "request",
     id: string,
   ) => {
-    if (!repo || !confirm(`Delete this ${kind}? This cannot be undone.`))
-      return;
+    if (!repo) return;
+    const approved = await confirmDialog({ title: `Delete ${kind}?`, message: "This action cannot be undone.", confirmLabel: `Delete ${kind}`, destructive: true });
+    if (!approved) return;
     if (kind === "workspace") {
       await repo.deleteWorkspace(id);
       setWorkspace(null);
@@ -977,25 +984,14 @@ export default function ApiClient({
     }
   };
   const promptMoveRequest = async (item: ApiRequest) => {
-    const destinations = [
-      "Collection root",
-      ...folders.map((folder) => folder.name),
-    ];
-    const choice = prompt(
-      `Move to:\n${destinations.join("\n")}`,
-      "Collection root",
-    );
+    const choice = await ask({
+      title: `Move “${item.name}”`,
+      label: "Destination",
+      confirmLabel: "Move request",
+      options: [{ label: "Collection root", value: "root" }, ...folders.map((folder) => ({ label: folder.name, value: folder.id }))],
+    });
     if (!choice) return;
-    if (choice.toLowerCase() === "collection root")
-      return moveRequest(item, null);
-    const target = folders.find(
-      (folder) => folder.name.toLowerCase() === choice.toLowerCase(),
-    );
-    if (!target) {
-      setError("Folder not found. Enter the folder name exactly as shown.");
-      return;
-    }
-    await moveRequest(item, target.id);
+    await moveRequest(item, choice === "root" ? null : choice);
   };
   const importFile = async (file: File) => {
     if (!workspace || !repo) return;
@@ -1012,6 +1008,7 @@ export default function ApiClient({
         setBusyLabel(label);
         setBusyProgress(Math.round((completed / total) * 100));
       };
+      imported.collection.createdBy = userId;
       await repo.createCollection(imported.collection);
       createdCollectionId = imported.collection.id;
       advance(`Importing folders… ${completed}/${total}`);
@@ -1233,6 +1230,8 @@ export default function ApiClient({
                   >
                     <button
                       className="nav-main"
+                      title={item.ownerEmail ? `Workspace owner: ${item.ownerEmail}` : "Workspace owner unavailable"}
+                      aria-label={`${item.name}${item.ownerEmail ? `, owned by ${item.ownerEmail}` : ""}`}
                       onClick={() => chooseWorkspace(item)}
                     >
                       <Box size={16} />
@@ -1342,6 +1341,8 @@ export default function ApiClient({
                   <CollectionTreeNode
                     key={item.id}
                     item={item}
+                    canDelete={isAdmin || workspace?.ownerId === userId || item.createdBy === userId}
+                    onEditDocumentation={setDocumentationTarget}
                     activeCollection={collection}
                     expanded={expandedCollections.has(item.id)}
                     folders={collection?.id === item.id ? folders : []}
@@ -1521,6 +1522,7 @@ export default function ApiClient({
                     onOpen={() => openRequest(item)}
                     actions={
                       <>
+                        <button onClick={() => setDocumentationTarget(item)}>Documentation</button>
                         <button onClick={() => rename("request", item)}>
                           Rename
                         </button>
@@ -1619,11 +1621,18 @@ export default function ApiClient({
                 onManage={() => setEnvironmentsOpen(true)}
               />
               <Tabs
-                labels={["Params", "Headers", "Body", "Auth"]}
+                labels={["Docs", "Params", "Headers", "Body", "Auth"]}
                 value={requestTab}
                 onChange={(v) => setRequestTab(v as typeof requestTab)}
               />
               <div className="editor-body">
+                {requestTab === "Docs" && (
+                  <div className="endpoint-docs-panel">
+                    <div className="endpoint-docs-toolbar"><div><span className="eyebrow">Endpoint documentation</span><h3>How does this endpoint work?</h3></div><button className="primary" onClick={() => void save()}>Save documentation</button></div>
+                    <RichDocumentationEditor value={request.documentation || ""} onChange={(documentation) => setRequest({ ...request, documentation })} />
+                    <p className="muted">Use headings, bullets, code blocks, example URLs, and expected responses. Documentation is saved with this request.</p>
+                  </div>
+                )}
                 {requestTab === "Params" && (
                   <KeyValueEditor
                     value={request.params}
@@ -1794,6 +1803,26 @@ export default function ApiClient({
           {notice}
         </div>
       )}
+      {dialog}
+      {documentationTarget && <DocumentationEditor target={documentationTarget} onClose={() => setDocumentationTarget(null)} onSave={async (content) => {
+        if (!repo) return;
+        if ("method" in documentationTarget) {
+          const updated = { ...documentationTarget, documentation: content };
+          await repo.updateRequest(updated);
+          setRequests((items) => items.map((item) => item.id === updated.id ? updated : item));
+          if (request?.id === updated.id) setRequest(updated);
+        } else if ("workspaceId" in documentationTarget) {
+          const updated = { ...documentationTarget, description: content };
+          await repo.updateCollection(updated);
+          setCollections((items) => items.map((item) => item.id === updated.id ? updated : item));
+          if (collection?.id === updated.id) setCollection(updated);
+        } else {
+          const updated = { ...documentationTarget, description: content };
+          await repo.updateFolder(updated);
+          setFolders((items) => items.map((item) => item.id === updated.id ? updated : item));
+        }
+        setDocumentationTarget(null);
+      }} />}
     </main>
   );
 }
@@ -1968,6 +1997,7 @@ function EnvironmentManager({
   onChanged: () => Promise<void>;
   onClose: () => void;
 }) {
+  const { ask, confirm: confirmDialog, dialog } = useAppDialog();
   const [selectedId, setSelectedId] = useState(
     activeId || environments[0]?.id || "",
   );
@@ -1984,7 +2014,7 @@ function EnvironmentManager({
     setDraft(environments.find((item) => item.id === id) ?? null);
   };
   const create = async () => {
-    const name = prompt("Environment name");
+    const name = await ask({ title: "New environment", label: "Environment name", placeholder: "e.g. User Acceptance Testing", confirmLabel: "Create environment" });
     if (!name?.trim()) return;
     const item: Environment = {
       id: newId(),
@@ -2022,7 +2052,9 @@ function EnvironmentManager({
     }
   };
   const removeEnvironment = async () => {
-    if (!draft || !confirm(`Delete “${draft.name}”?`)) return;
+    if (!draft) return;
+    const approved = await confirmDialog({ title: `Delete “${draft.name}”?`, message: "Requests using this environment will keep their unresolved variable names.", confirmLabel: "Delete environment", destructive: true });
+    if (!approved) return;
     setBusy(true);
     try {
       await repo.deleteEnvironment(draft.id);
@@ -2136,7 +2168,7 @@ function EnvironmentManager({
             )}
           </div>
         </div>
-      </section>
+      </section>{dialog}
     </div>
   );
 }
@@ -2152,6 +2184,8 @@ type RemoveFn = (
 
 function CollectionTreeNode({
   item,
+  canDelete,
+  onEditDocumentation,
   activeCollection,
   expanded,
   folders,
@@ -2175,6 +2209,8 @@ function CollectionTreeNode({
   onPromptMoveRequest,
 }: {
   item: Collection;
+  canDelete: boolean;
+  onEditDocumentation: (target: Collection | FolderType) => void;
   activeCollection: Collection | null;
   expanded: boolean;
   folders: FolderType[];
@@ -2234,16 +2270,17 @@ function CollectionTreeNode({
         <TreeMenu label={`${item.name} actions`}>
           <button onClick={() => onAddRequest(item, null)}>Add request</button>
           <button onClick={() => onAddFolder(item, null)}>Add folder</button>
+          <button onClick={() => onEditDocumentation(item)}>Documentation</button>
           <button onClick={() => onExportCollection(item)}>
             Export collection
           </button>
           <button onClick={() => onRename("collection", item)}>Rename</button>
-          <button
+          {canDelete && <button
             className="danger"
             onClick={() => onRemove("collection", item.id)}
           >
             Delete
-          </button>
+          </button>}
         </TreeMenu>
       </div>
       {expanded && activeCollection?.id === item.id && (
@@ -2272,6 +2309,7 @@ function CollectionTreeNode({
                 onExportFolder={onExportFolder}
                 onToggleFolderStar={onToggleFolderStar}
                 onMoveRequest={onMoveRequest}
+                onEditDocumentation={onEditDocumentation}
                 onPromptMoveRequest={onPromptMoveRequest}
               />
             ))}
@@ -2319,6 +2357,7 @@ function FolderTreeNode({
   onToggleFolderStar,
   onMoveRequest,
   onPromptMoveRequest,
+  onEditDocumentation,
 }: {
   collection: Collection;
   folder: FolderType;
@@ -2345,6 +2384,7 @@ function FolderTreeNode({
   onToggleFolderStar: (folder: FolderType) => Promise<void>;
   onMoveRequest: (item: ApiRequest, folderId: string | null) => Promise<void>;
   onPromptMoveRequest: (item: ApiRequest) => Promise<void>;
+  onEditDocumentation: (target: Collection | FolderType) => void;
 }) {
   const expanded = expandedFolders.has(folder.id);
   const children = folders
@@ -2402,6 +2442,7 @@ function FolderTreeNode({
           <button onClick={() => onAddFolder(collection, folder.id)}>
             Add subfolder
           </button>
+          <button onClick={() => onEditDocumentation(folder)}>Documentation</button>
           <button onClick={() => onExportFolder(folder)}>Export folder</button>
           <button onClick={() => onRename("folder", folder)}>Rename</button>
           <button
@@ -2436,6 +2477,7 @@ function FolderTreeNode({
               onToggleFolderStar={onToggleFolderStar}
               onMoveRequest={onMoveRequest}
               onPromptMoveRequest={onPromptMoveRequest}
+              onEditDocumentation={onEditDocumentation}
             />
           ))}
           {endpoints.map((endpoint) => (
@@ -2455,6 +2497,61 @@ function FolderTreeNode({
       )}
     </div>
   );
+}
+
+function RichDocumentationEditor({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const { ask, dialog } = useAppDialog();
+  const editorRef = useRef<HTMLDivElement>(null);
+  const initialized = useRef(false);
+  useEffect(() => {
+    if (editorRef.current && !initialized.current) {
+      editorRef.current.innerHTML = value;
+      initialized.current = true;
+    }
+  }, [value]);
+  const command = (name: string, argument?: string) => {
+    editorRef.current?.focus();
+    document.execCommand(name, false, argument);
+    onChange(editorRef.current?.innerHTML || "");
+  };
+  const link = async () => {
+    const url = await ask({ title: "Add link", label: "URL", placeholder: "https://example.com", confirmLabel: "Insert link" });
+    if (url) command("createLink", url);
+  };
+  return <div className="rich-doc-editor">
+    <div className="rich-doc-toolbar" role="toolbar" aria-label="Documentation formatting">
+      <select aria-label="Text style" defaultValue="p" onChange={(event) => command("formatBlock", event.target.value)}><option value="p">Normal text</option><option value="h2">Heading 1</option><option value="h3">Heading 2</option><option value="h4">Heading 3</option></select>
+      <button type="button" aria-label="Bold" onClick={() => command("bold")}><strong>B</strong></button><button type="button" aria-label="Italic" onClick={() => command("italic")}><em>I</em></button><button type="button" aria-label="Underline" onClick={() => command("underline")}><u>U</u></button><span className="rich-doc-divider" />
+      <button type="button" onClick={() => command("insertUnorderedList")}>• List</button><button type="button" onClick={() => command("insertOrderedList")}>1. List</button><button type="button" onClick={() => command("formatBlock", "blockquote")}>Quote</button><button type="button" onClick={() => command("formatBlock", "pre")}>Code</button><button type="button" aria-label="Add link" onClick={link}>Link</button>
+    </div>
+    <div ref={editorRef} className="rich-doc-content" contentEditable suppressContentEditableWarning role="textbox" aria-multiline="true" data-placeholder="Describe what this endpoint does, its parameters, authentication, examples, and expected responses..." onInput={(event) => onChange(event.currentTarget.innerHTML)} />
+    {dialog}</div>;
+}
+
+function DocumentationEditor({
+  target,
+  onClose,
+  onSave,
+}: {
+  target: Collection | FolderType | ApiRequest;
+  onClose: () => void;
+  onSave: (content: string) => Promise<void>;
+}) {
+  const [content, setContent] = useState("method" in target ? target.documentation || "" : target.description || "");
+  const [saving, setSaving] = useState(false);
+  const isRequest = "method" in target;
+  const isCollection = "workspaceId" in target;
+  const save = async () => {
+    setSaving(true);
+    try { await onSave(content); } finally { setSaving(false); }
+  };
+  return <div className="modal-scrim" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <section className="documentation-modal" role="dialog" aria-modal="true" aria-labelledby="documentation-title">
+      <header><div><span className="eyebrow">{isRequest ? "Endpoint documentation" : isCollection ? "Collection documentation" : "Folder documentation"}</span><h2 id="documentation-title">{target.name}</h2><p>Describe how this endpoint works, required inputs, examples, and expected responses.</p></div><button className="icon-button" aria-label="Close documentation" onClick={onClose}>×</button></header>
+      <div className="documentation-editor"><textarea autoFocus value={content} onChange={(event) => setContent(event.target.value)} placeholder="# Overview\nExplain what this endpoint does...\n\n## Parameters\n\n## Example response\n" /><aside><strong>Documentation tips</strong><span>Use headings, bullets, code blocks, and example URLs.</span><span>Keep instructions concise and task-focused.</span><span>Changes are saved to this {isRequest ? "endpoint" : isCollection ? "collection" : "folder"}.</span></aside></div>
+      <footer><button className="secondary" onClick={onClose}>Cancel</button><button className="primary" disabled={saving} onClick={() => void save()}>{saving ? "Saving…" : "Save documentation"}</button></footer>
+    </section>
+  </div>;
 }
 
 function RequestTreeRow({

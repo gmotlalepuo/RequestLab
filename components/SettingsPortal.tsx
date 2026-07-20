@@ -19,9 +19,14 @@ export default function SettingsPortal({ email, metadata, isAdmin }: { email: st
   const [error, setError] = useState("");
 
   const loadComplaints = async () => {
-    const response = await fetch("/api/complaints");
-    const data = await response.json();
-    if (response.ok) setComplaints(data.complaints || []);
+    try {
+      const response = await fetch("/api/complaints", { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not load your reports.");
+      setComplaints(data.complaints || []);
+    } catch (cause) {
+      setError((cause as Error).message);
+    }
   };
   useEffect(() => { void loadComplaints(); }, []);
   const run = async (label: string, task: () => Promise<void>) => {
@@ -39,7 +44,7 @@ export default function SettingsPortal({ email, metadata, isAdmin }: { email: st
   const changePassword = (event: FormEvent) => {
     event.preventDefault();
     void run("password", async () => {
-      if (password.length < 8) throw new Error("Use at least 8 characters for your new password.");
+      if (password.length < 12) throw new Error("Use at least 12 characters for your new password.");
       const { error } = await createClient().auth.updateUser({ password });
       if (error) throw error;
       setPassword(""); setNotice("Password changed successfully.");
@@ -62,10 +67,10 @@ export default function SettingsPortal({ email, metadata, isAdmin }: { email: st
     <div className="portal-layout">
       <aside><span className="section-kicker">Account</span><h1>Settings</h1><p>Manage your profile, security, and support requests.</p><div className="account-summary"><UserRound/><div><strong>{profile.fullName || "RequestLab user"}</strong><small>{email}</small></div></div></aside>
       <section className="settings-stack">
-        {(error || notice) && <div className={error ? "portal-alert error" : "portal-alert success"}>{error || notice}</div>}
+        {(error || notice) && <div className={error ? "portal-alert error" : "portal-alert success"} role={error ? "alert" : "status"}>{error || notice}</div>}
         <form className="portal-card" onSubmit={saveProfile}><header><UserRound/><div><h2>Profile information</h2><p>Keep your account details current.</p></div></header><div className="portal-fields"><label>Full name<input value={profile.fullName} onChange={e=>setProfile({...profile,fullName:e.target.value})}/></label><label>Job title<input value={profile.jobTitle} onChange={e=>setProfile({...profile,jobTitle:e.target.value})}/></label><label>Company<input value={profile.company} onChange={e=>setProfile({...profile,company:e.target.value})}/></label><label>Email<input value={email} disabled/></label></div><button className="primary" disabled={busy==="profile"}>{busy==="profile"?<LoaderCircle className="spin"/>:<Save/>} Save profile</button></form>
-        <form className="portal-card" onSubmit={changePassword}><header><KeyRound/><div><h2>Change password</h2><p>Use a unique password with at least eight characters.</p></div></header><label>New password<input type="password" autoComplete="new-password" minLength={8} required value={password} onChange={e=>setPassword(e.target.value)}/></label><button className="primary" disabled={busy==="password"}>{busy==="password"?<LoaderCircle className="spin"/>:<KeyRound/>} Update password</button></form>
-        <form className="portal-card" onSubmit={submitComplaint}><header><MessageSquareWarning/><div><h2>Report a problem</h2><p>Tell the administrator what went wrong or what could improve.</p></div></header><label>Subject<input required minLength={3} value={complaint.subject} onChange={e=>setComplaint({...complaint,subject:e.target.value})}/></label><label>Details<textarea required minLength={10} value={complaint.message} onChange={e=>setComplaint({...complaint,message:e.target.value})}/></label><button className="primary" disabled={busy==="complaint"}>{busy==="complaint"?<LoaderCircle className="spin"/>:<MessageSquareWarning/>} Submit complaint</button></form>
+        <form className="portal-card" onSubmit={changePassword}><header><KeyRound/><div><h2>Change password</h2><p>Use a unique password with at least twelve characters.</p></div></header><label>New password<input type="password" autoComplete="new-password" minLength={12} maxLength={256} required value={password} onChange={e=>setPassword(e.target.value)}/></label><button className="primary" disabled={busy==="password"}>{busy==="password"?<LoaderCircle className="spin"/>:<KeyRound/>} Update password</button></form>
+        <form className="portal-card" onSubmit={submitComplaint}><header><MessageSquareWarning/><div><h2>Report a problem</h2><p>Tell the administrator what went wrong or what could improve.</p></div></header><label>Subject<input required minLength={3} maxLength={160} value={complaint.subject} onChange={e=>setComplaint({...complaint,subject:e.target.value})}/></label><label>Details<textarea required minLength={10} maxLength={10000} value={complaint.message} onChange={e=>setComplaint({...complaint,message:e.target.value})}/></label><button className="primary" disabled={busy==="complaint"}>{busy==="complaint"?<LoaderCircle className="spin"/>:<MessageSquareWarning/>} Submit complaint</button></form>
         <section className="portal-card"><header><CheckCircle2/><div><h2>Your reports</h2><p>Track responses from the administrator.</p></div></header><div className="complaint-list">{complaints.length?complaints.map(item=><article key={item.id}><div><strong>{item.subject}</strong><span className={`status-badge ${item.status}`}>{item.status.replace("_"," ")}</span></div><p>{item.message}</p>{item.admin_response&&<blockquote>{item.admin_response}</blockquote>}<small>{new Date(item.created_at).toLocaleString()}</small></article>):<p className="muted">You have not submitted any complaints.</p>}</div></section>
       </section>
     </div>

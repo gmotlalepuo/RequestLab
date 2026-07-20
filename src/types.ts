@@ -22,6 +22,7 @@ export type RequestAuth = {
 export type Workspace = {
   id: string;
   ownerId?: string;
+  ownerEmail?: string;
   name: string;
   createdAt: string;
 };
@@ -57,6 +58,7 @@ export type Environment = {
 export type Collection = {
   id: string;
   workspaceId: string;
+  createdBy?: string | null;
   name: string;
   description: string;
   createdAt: string;
@@ -67,6 +69,7 @@ export type Folder = {
   collectionId: string;
   parentFolderId: string | null;
   name: string;
+  description: string;
   isStarred: boolean;
   createdAt: string;
 };
@@ -76,6 +79,7 @@ export type ApiRequest = {
   collectionId: string;
   folderId: string | null;
   name: string;
+  documentation?: string;
   method: HttpMethod;
   url: string;
   params: KeyValue[];

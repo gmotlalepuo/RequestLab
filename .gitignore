@@ -9,6 +9,8 @@ out/
 
 # Local AI assistant configuration
 .claude/
+.playwright-cli/
+output/playwright/
 
 # Expo
 .expo/

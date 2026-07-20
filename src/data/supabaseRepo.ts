@@ -19,6 +19,11 @@ type WorkspaceRow = {
   created_at: string;
 };
 
+type WorkspaceOwnerRow = {
+  workspace_id: string;
+  email: string;
+};
+
 type WorkspaceInviteRow = {
   id: string;
   workspace_id: string;
@@ -50,6 +55,7 @@ type EnvironmentRow = {
 type CollectionRow = {
   id: string;
   workspace_id: string;
+  created_by: string | null;
   name: string;
   description: string;
   created_at: string;
@@ -60,6 +66,7 @@ type FolderRow = {
   collection_id: string;
   parent_folder_id: string | null;
   name: string;
+  description: string | null;
   is_starred: boolean;
   created_at: string;
 };
@@ -69,6 +76,7 @@ type RequestRow = {
   collection_id: string;
   folder_id: string | null;
   name: string;
+  documentation: string | null;
   method: string;
   url: string;
   params: ApiRequest["params"];
@@ -118,6 +126,7 @@ const toEnvironment = (row: EnvironmentRow): Environment => ({
 const toCollection = (row: CollectionRow): Collection => ({
   id: row.id,
   workspaceId: row.workspace_id,
+  createdBy: row.created_by,
   name: row.name,
   description: row.description ?? "",
   createdAt: row.created_at,
@@ -128,6 +137,7 @@ const toFolder = (row: FolderRow): Folder => ({
   collectionId: row.collection_id,
   parentFolderId: row.parent_folder_id,
   name: row.name,
+  description: row.description ?? "",
   isStarred: row.is_starred ?? false,
   createdAt: row.created_at,
 });
@@ -137,6 +147,7 @@ const toRequest = (row: RequestRow): ApiRequest => ({
   collectionId: row.collection_id,
   folderId: row.folder_id,
   name: row.name,
+  documentation: row.documentation ?? "",
   method: row.method as ApiRequest["method"],
   url: row.url,
   params: row.params ?? [],
@@ -153,6 +164,7 @@ const toRequestRow = (request: ApiRequest): Omit<RequestRow, "created_at"> => ({
   collection_id: request.collectionId,
   folder_id: request.folderId,
   name: request.name,
+  documentation: request.documentation ?? "",
   method: request.method,
   url: request.url,
   params: request.params,
@@ -173,12 +185,25 @@ export class SupabaseRepository implements Repository {
   }
 
   async listWorkspaces(): Promise<Workspace[]> {
-    const { data, error } = await this.client
+    const [{ data, error }, { data: owners, error: ownersError }] = await Promise.all([
+      this.client
       .from("postman_workspaces")
       .select("*")
-      .order("name");
+      .order("name"),
+      this.client
+        .from("postman_workspace_members")
+        .select("workspace_id,email")
+        .eq("role", "owner"),
+    ]);
     this.throwIfError(error);
-    return (data as WorkspaceRow[]).map(toWorkspace);
+    this.throwIfError(ownersError);
+    const ownerByWorkspace = new Map(
+      (owners as WorkspaceOwnerRow[]).map((owner) => [owner.workspace_id, owner.email]),
+    );
+    return (data as WorkspaceRow[]).map((row) => ({
+      ...toWorkspace(row),
+      ownerEmail: ownerByWorkspace.get(row.id) || undefined,
+    }));
   }
 
   async createWorkspace(workspace: Workspace): Promise<void> {
@@ -368,6 +393,7 @@ export class SupabaseRepository implements Repository {
       collection_id: folder.collectionId,
       parent_folder_id: folder.parentFolderId,
       name: folder.name,
+      description: folder.description,
       is_starred: folder.isStarred,
     });
     this.throwIfError(error);
@@ -378,6 +404,7 @@ export class SupabaseRepository implements Repository {
       .from("postman_folders")
       .update({
         name: folder.name,
+        description: folder.description,
         parent_folder_id: folder.parentFolderId,
         is_starred: folder.isStarred,
       })

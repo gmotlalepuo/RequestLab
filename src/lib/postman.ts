@@ -168,6 +168,7 @@ export function importPostmanCollection(
           collectionId: collection.id,
           parentFolderId,
           name: item.name ?? "Folder",
+          description: "",
           isStarred: false,
           createdAt: now,
         };
