@@ -82,10 +82,12 @@ create table if not exists postman_folders (
   name text not null,
   description text not null default '',
   is_starred boolean not null default false,
+  sort_order integer not null default 0,
   created_at timestamptz not null default now()
 );
 alter table postman_folders add column if not exists is_starred boolean not null default false;
 alter table postman_folders add column if not exists description text not null default '';
+alter table postman_folders add column if not exists sort_order integer not null default 0;
 
 create table if not exists postman_requests (
   id uuid primary key,
@@ -93,6 +95,7 @@ create table if not exists postman_requests (
   folder_id uuid references postman_folders (id) on delete cascade,
   name text not null,
   documentation text not null default '',
+  sort_order integer not null default 0,
   method text not null default 'GET',
   url text not null default '',
   params jsonb not null default '[]'::jsonb,
@@ -104,6 +107,7 @@ create table if not exists postman_requests (
   created_at timestamptz not null default now()
 );
 alter table postman_requests add column if not exists documentation text not null default '';
+alter table postman_requests add column if not exists sort_order integer not null default 0;
 
 create index if not exists postman_workspaces_user_id_idx on postman_workspaces (user_id);
 create index if not exists postman_members_user_id_idx on postman_workspace_members (user_id);

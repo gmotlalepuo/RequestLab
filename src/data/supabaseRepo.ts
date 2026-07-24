@@ -68,6 +68,7 @@ type FolderRow = {
   name: string;
   description: string | null;
   is_starred: boolean;
+  sort_order?: number | null;
   created_at: string;
 };
 
@@ -77,6 +78,7 @@ type RequestRow = {
   folder_id: string | null;
   name: string;
   documentation: string | null;
+  sort_order?: number | null;
   method: string;
   url: string;
   params: ApiRequest["params"];
@@ -139,6 +141,7 @@ const toFolder = (row: FolderRow): Folder => ({
   name: row.name,
   description: row.description ?? "",
   isStarred: row.is_starred ?? false,
+  sortOrder: row.sort_order ?? 0,
   createdAt: row.created_at,
 });
 
@@ -148,6 +151,7 @@ const toRequest = (row: RequestRow): ApiRequest => ({
   folderId: row.folder_id,
   name: row.name,
   documentation: row.documentation ?? "",
+  sortOrder: row.sort_order ?? 0,
   method: row.method as ApiRequest["method"],
   url: row.url,
   params: row.params ?? [],

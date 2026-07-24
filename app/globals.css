@@ -4721,6 +4721,13 @@ html[data-theme="dark"] .landing-final {
   background-image: none !important;
 }
 .send { border-left: 0 !important; }
+.json-copy-token { border:0; padding:0; margin:0; background:transparent; color:inherit; font:inherit; cursor:pointer; border-radius:3px; }
+.json-copy-token:hover,.json-copy-token:focus-visible { background:color-mix(in srgb, var(--brand) 16%, transparent); outline:0; }
+.request-tree-row { position:relative; }
+.request-tree-row.drop-before::before,
+.request-tree-row.drop-after::after { content:""; position:absolute; left:8px; right:8px; height:3px; border-radius:999px; background:var(--brand); box-shadow:0 0 0 2px color-mix(in srgb, var(--brand) 18%, transparent); pointer-events:none; z-index:3; }
+.request-tree-row.drop-before::before { top:-2px; }
+.request-tree-row.drop-after::after { bottom:-2px; }
 .app-shell .primary,
 .app-shell .send,
 .app-shell .mobile-add,

@@ -70,6 +70,7 @@ export type Folder = {
   parentFolderId: string | null;
   name: string;
   description: string;
+  sortOrder?: number;
   isStarred: boolean;
   createdAt: string;
 };
@@ -80,6 +81,7 @@ export type ApiRequest = {
   folderId: string | null;
   name: string;
   documentation?: string;
+  sortOrder?: number;
   method: HttpMethod;
   url: string;
   params: KeyValue[];

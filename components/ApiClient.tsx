@@ -98,7 +98,7 @@ const pretty = (value: string) => {
     return value;
   }
 };
-const jsonTokens = (value: string) => {
+const jsonTokens = (value: string, onCopy?: (value: string) => void) => {
   try {
     const formatted = JSON.stringify(JSON.parse(value), null, 2);
     const pattern =
@@ -118,11 +118,13 @@ const jsonTokens = (value: string) => {
             : token === "null"
               ? "null"
               : "number";
-      result.push(
-        <span className={`json-${type}`} key={`${index}-${token}`}>
-          {token}
-        </span>,
-      );
+      const isValue = type !== "key";
+      const rendered = <span className={`json-${type}`}>{token}</span>;
+      result.push(isValue && onCopy ? <button type="button" className={`json-copy-token json-${type}`} title="Copy value" onClick={() => {
+        let copied = token;
+        try { copied = JSON.parse(token); } catch { copied = token; }
+        onCopy(String(copied));
+      }} key={`${index}-${token}`}>{rendered}</button> : <span className={`json-${type}`} key={`${index}-${token}`}>{token}</span>);
       cursor = index + token.length;
     }
     if (cursor < formatted.length) result.push(formatted.slice(cursor));
@@ -1001,6 +1003,21 @@ export default function ApiClient({
     if (!choice) return;
     await moveRequest(item, choice === "root" ? null : choice);
   };
+  const reorderRequest = async (dragged: ApiRequest, target: ApiRequest, position: "before" | "after" = "before") => {
+    if (!repo || dragged.id === target.id || dragged.folderId !== target.folderId) return;
+    const siblings = requests.filter((item) => item.folderId === target.folderId).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name));
+    const from = siblings.findIndex((item) => item.id === dragged.id);
+    const to = siblings.findIndex((item) => item.id === target.id);
+    if (from < 0 || to < 0) return;
+    const next = [...siblings]; const [moved] = next.splice(from, 1); const targetIndex = next.findIndex((item) => item.id === target.id); next.splice(Math.max(0, targetIndex + (position === "after" ? 1 : 0)), 0, moved);
+    const updated = next.map((item, index) => ({ ...item, sortOrder: index }));
+    const orderById = new Map(updated.map((item, index) => [item.id, index]));
+    setRequests((all) => [...all].sort((a, b) => {
+      if (a.folderId !== target.folderId || b.folderId !== target.folderId) return 0;
+      return (orderById.get(a.id) ?? 0) - (orderById.get(b.id) ?? 0);
+    }).map((item) => orderById.has(item.id) ? { ...item, sortOrder: orderById.get(item.id) } : item));
+    await Promise.all(updated.map((item) => repo.updateRequest(item)));
+  };
   const importFile = async (file: File) => {
     if (!workspace || !repo) return;
     setError("");
@@ -1351,6 +1368,7 @@ export default function ApiClient({
                     item={item}
                     canDelete={isAdmin || workspace?.ownerId === userId || item.createdBy === userId}
                     onEditDocumentation={setDocumentationTarget}
+                    onReorderRequest={reorderRequest}
                     activeCollection={collection}
                     expanded={expandedCollections.has(item.id)}
                     folders={collection?.id === item.id ? folders : []}
@@ -1728,7 +1746,10 @@ export default function ApiClient({
                     {responseTab === "Body" ? (
                       <pre className="json-viewer">
                         <code>
-                          {(jsonTokens(response.body) ??
+                          {(jsonTokens(response.body, async (value) => {
+                            try { await navigator.clipboard.writeText(value); notify("Value copied"); }
+                            catch { setError("Could not copy this value. Check browser clipboard permission."); }
+                          }) ??
                             pretty(response.body)) ||
                             "(empty body)"}
                         </code>
@@ -2221,6 +2242,7 @@ function CollectionTreeNode({
   onExportFolder,
   onToggleFolderStar,
   onMoveRequest,
+  onReorderRequest,
   onPromptMoveRequest,
 }: {
   item: Collection;
@@ -2252,6 +2274,7 @@ function CollectionTreeNode({
   onExportFolder: (folder: FolderType) => void;
   onToggleFolderStar: (folder: FolderType) => Promise<void>;
   onMoveRequest: (item: ApiRequest, folderId: string | null) => Promise<void>;
+  onReorderRequest: (dragged: ApiRequest, target: ApiRequest, position: "before" | "after") => Promise<void>;
   onPromptMoveRequest: (item: ApiRequest) => Promise<void>;
 }) {
   return (
@@ -2326,6 +2349,7 @@ function CollectionTreeNode({
                 onMoveRequest={onMoveRequest}
                 onEditDocumentation={onEditDocumentation}
                 onPromptMoveRequest={onPromptMoveRequest}
+                onReorderRequest={onReorderRequest}
               />
             ))}
           {requests
@@ -2341,6 +2365,7 @@ function CollectionTreeNode({
                 onRemove={onRemove}
                 onDuplicate={onDuplicate}
                 onMoveRequest={onPromptMoveRequest}
+                onReorderRequest={onReorderRequest}
               />
             ))}
           {folders.length === 0 && requests.length === 0 && (
@@ -2373,6 +2398,7 @@ function FolderTreeNode({
   onMoveRequest,
   onPromptMoveRequest,
   onEditDocumentation,
+  onReorderRequest,
 }: {
   collection: Collection;
   folder: FolderType;
@@ -2400,6 +2426,7 @@ function FolderTreeNode({
   onMoveRequest: (item: ApiRequest, folderId: string | null) => Promise<void>;
   onPromptMoveRequest: (item: ApiRequest) => Promise<void>;
   onEditDocumentation: (target: Collection | FolderType) => void;
+  onReorderRequest: (dragged: ApiRequest, target: ApiRequest, position: "before" | "after") => Promise<void>;
 }) {
   const expanded = expandedFolders.has(folder.id);
   const children = folders
@@ -2493,6 +2520,7 @@ function FolderTreeNode({
               onMoveRequest={onMoveRequest}
               onPromptMoveRequest={onPromptMoveRequest}
               onEditDocumentation={onEditDocumentation}
+              onReorderRequest={onReorderRequest}
             />
           ))}
           {endpoints.map((endpoint) => (
@@ -2506,6 +2534,7 @@ function FolderTreeNode({
               onRemove={onRemove}
               onDuplicate={onDuplicate}
               onMoveRequest={onPromptMoveRequest}
+              onReorderRequest={onReorderRequest}
             />
           ))}
         </div>
@@ -2585,6 +2614,7 @@ function RequestTreeRow({
   onRemove,
   onDuplicate,
   onMoveRequest,
+  onReorderRequest,
 }: {
   endpoint: ApiRequest;
   depth: number;
@@ -2594,16 +2624,22 @@ function RequestTreeRow({
   onRemove: RemoveFn;
   onDuplicate: (item: ApiRequest) => Promise<void>;
   onMoveRequest: (item: ApiRequest) => Promise<void>;
+  onReorderRequest: (dragged: ApiRequest, target: ApiRequest, position: "before" | "after") => Promise<void>;
 }) {
+  const [dropPosition, setDropPosition] = useState<"before" | "after" | null>(null);
   return (
     <div
-      className={`tree-row request-tree-row ${active ? "active" : ""}`}
+      className={`tree-row request-tree-row ${active ? "active" : ""} ${dropPosition ? `drop-${dropPosition}` : ""}`}
       style={{ "--tree-depth": depth } as React.CSSProperties}
       draggable
       onDragStart={(event) => {
         event.dataTransfer.effectAllowed = "move";
         event.dataTransfer.setData("text/requestlab-request", endpoint.id);
+        event.dataTransfer.setData("text/requestlab-request-json", JSON.stringify(endpoint));
       }}
+      onDragOver={(event) => { if (event.dataTransfer.types.includes("text/requestlab-request")) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; setDropPosition(event.clientY < event.currentTarget.getBoundingClientRect().top + event.currentTarget.getBoundingClientRect().height / 2 ? "before" : "after"); } }}
+      onDragLeave={() => setDropPosition(null)}
+      onDrop={(event) => { event.preventDefault(); event.stopPropagation(); const raw = event.dataTransfer.getData("text/requestlab-request-json"); const position = dropPosition || "before"; setDropPosition(null); if (!raw) return; try { void onReorderRequest(JSON.parse(raw) as ApiRequest, endpoint, position); } catch { /* ignore malformed drag payload */ } }}
     >
       <span className={`tree-method ${endpoint.method.toLowerCase()}`}>
         {endpoint.method}
@@ -2638,8 +2674,8 @@ function TreeMenu({
   children: React.ReactNode;
 }) {
   return (
-    <details className="menu tree-menu">
-      <summary aria-label={label}>
+    <details className="menu tree-menu" onPointerDown={(event) => event.stopPropagation()} onDragStart={(event) => event.stopPropagation()}>
+      <summary aria-label={label} onClick={(event) => event.stopPropagation()}>
         <MoreHorizontal size={15} />
       </summary>
       <div className="menu-pop">

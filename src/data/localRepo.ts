@@ -62,7 +62,7 @@ export class LocalRepository implements Repository {
     const items = await readAll<Collection>(KEYS.collections);
     return items
       .filter((c) => c.workspaceId === workspaceId)
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name));
   }
 
   async createCollection(collection: Collection): Promise<void> {
@@ -101,7 +101,7 @@ export class LocalRepository implements Repository {
     const items = await readAll<Folder>(KEYS.folders);
     return items
       .filter((f) => f.collectionId === collectionId)
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name));
   }
 
   async createFolder(folder: Folder): Promise<void> {
