@@ -50,3 +50,4 @@ Existing unprefixed tables are not modified or queried. If upgrading an earlier 
 
 - [Technical documentation](docs/TECHNICAL_DOCUMENTATION.md) — architecture, security, data model, deployment, and operations.
 - [Business and investor brief](docs/BUSINESS_AND_INVESTOR_DOCUMENTATION.md) — capabilities, organizational benefits, use cases, commercial opportunities, and roadmap.
+- [Database and MCP automation guide](docs/MCP_DATABASE_AUTOMATION_GUIDE.md) — schema contract, environments, variables, MCP tools, natural-language execution, and safety policy.

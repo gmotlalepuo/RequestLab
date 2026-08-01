@@ -31,6 +31,7 @@ import {
   Save,
   Send,
   Settings2,
+  Sparkles,
   Star,
   Upload,
   UserRound,
@@ -62,6 +63,7 @@ import BrandLogo from "./BrandLogo";
 import WorkspacePeople, { PendingInvites } from "./WorkspacePeople";
 import ThemeToggle from "./ThemeToggle";
 import { useAppDialog } from "./AppDialog";
+import AiAgentPanel from "./AiAgentPanel";
 
 const methods: HttpMethod[] = [
   "GET",
@@ -401,6 +403,7 @@ export default function ApiClient({
   const [activeEnvironmentId, setActiveEnvironmentId] = useState("");
   const [environmentsOpen, setEnvironmentsOpen] = useState(false);
   const [resourcePaneOpen, setResourcePaneOpen] = useState(true);
+  const [agentOpen, setAgentOpen] = useState(true);
   const [collectionsWidth, setCollectionsWidth] = useState(310);
   const [curlOpen, setCurlOpen] = useState(false);
   const [documentationTarget, setDocumentationTarget] = useState<Collection | FolderType | ApiRequest | null>(null);
@@ -1144,6 +1147,15 @@ export default function ApiClient({
               </button>
             </div>
           )}
+          <button
+            className={`top-link ai-toggle ${agentOpen ? "active" : ""}`}
+            onClick={() => setAgentOpen((value) => !value)}
+            aria-expanded={agentOpen}
+            aria-controls="requestlab-ai-agent"
+            title={agentOpen ? "Collapse AI agent" : "Open AI agent"}
+          >
+            <Sparkles size={16} /><span>AI Agent</span>
+          </button>
           <ThemeToggle />
           <Link className="top-link" href="/settings" title="Account settings">
             <Settings2 size={16} /><span>Settings</span>
@@ -1186,7 +1198,7 @@ export default function ApiClient({
         </div>
       )}
       <div
-        className="workspace-grid"
+        className={`workspace-grid ${agentOpen ? "agent-open" : "agent-closed"}`}
         style={
           {
             "--collections-width": `${collectionsWidth}px`,
@@ -1781,6 +1793,18 @@ export default function ApiClient({
             />
           )}
         </section>
+        <div id="requestlab-ai-agent">
+          <AiAgentPanel
+            open={agentOpen}
+            onOpenChange={setAgentOpen}
+            context={{
+              workspaceId: workspace?.id ?? null,
+              collectionId: collection?.id ?? null,
+              environmentId: activeEnvironmentId || null,
+              requestId: request?.id ?? null,
+            }}
+          />
+        </div>
       </div>
       <nav className="mobile-bottom" aria-label="Workspace navigation">
         <button onClick={() => setMobilePanel("workspaces")}>
