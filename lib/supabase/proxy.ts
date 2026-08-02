@@ -26,8 +26,12 @@ export async function updateSession(request: NextRequest, nonce: string, csp: st
       },
     },
   );
-  const { data: { user } } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
+  // The MCP execution gateway authenticates machine calls with a timestamped
+  // HMAC signature and the caller's Supabase bearer token. It intentionally
+  // has no browser session cookie, so let the route perform those checks.
+  if (path === '/api/mcp/execute') return secure(response);
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user && (path.startsWith('/app') || path.startsWith('/admin') || path.startsWith('/settings') || path.startsWith('/choose-app') || path.startsWith('/api/'))) {
     if (path.startsWith('/api/')) return secure(NextResponse.json({ error: 'Authentication required.' }, { status: 401 }));
     const url = request.nextUrl.clone();

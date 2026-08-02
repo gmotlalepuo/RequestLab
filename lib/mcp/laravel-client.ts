@@ -33,7 +33,7 @@ function connectionError(error: unknown, target: URL) {
     return `The MCP server hostname ${target.hostname} could not be resolved (${code}).`;
   }
   if (code === "ETIMEDOUT" || error instanceof DOMException && error.name === "TimeoutError") {
-    return `The MCP server connection to ${endpoint} timed out.`;
+    return `The MCP server at ${endpoint} did not complete the request within 130 seconds. The server is reachable, but its handler or local model may be stalled.`;
   }
   return `The MCP server is unavailable at ${endpoint}${code ? ` (${code})` : ""}.`;
 }

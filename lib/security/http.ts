@@ -16,7 +16,11 @@ export class HttpError extends Error {
 
 export function assertSameOrigin(request: Request) {
   const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin) {
+  const requestUrl = new URL(request.url);
+  const host = request.headers.get("host");
+  const acceptedOrigins = new Set([requestUrl.origin]);
+  if (host) acceptedOrigins.add(`${requestUrl.protocol}//${host}`);
+  if (origin && !acceptedOrigins.has(origin)) {
     throw new HttpError(403, "Cross-origin requests are not allowed.");
   }
   const site = request.headers.get("sec-fetch-site");
