@@ -1848,6 +1848,7 @@ export default function ApiClient({
           repo={repo}
           workspace={workspace}
           collection={collection}
+          requests={requests}
           environments={environments}
           activeId={activeEnvironmentId}
           onActiveChange={setActiveEnvironmentId}
@@ -2050,6 +2051,7 @@ function EnvironmentManager({
   repo,
   workspace,
   collection,
+  requests,
   environments,
   activeId,
   onActiveChange,
@@ -2059,6 +2061,7 @@ function EnvironmentManager({
   repo: Repository;
   workspace: Workspace;
   collection: Collection;
+  requests: ApiRequest[];
   environments: Environment[];
   activeId: string;
   onActiveChange: (id: string) => void;
@@ -2077,9 +2080,11 @@ function EnvironmentManager({
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [variableImportNotice, setVariableImportNotice] = useState("");
   const select = (id: string) => {
     setSelectedId(id);
     setDraft(environments.find((item) => item.id === id) ?? null);
+    setVariableImportNotice("");
   };
   const create = async () => {
     const name = await ask({ title: "New environment", label: "Environment name", placeholder: "e.g. User Acceptance Testing", confirmLabel: "Create environment" });
@@ -2093,6 +2098,7 @@ function EnvironmentManager({
       createdAt: new Date().toISOString(),
     };
     setBusy(true);
+    setVariableImportNotice("");
     try {
       await repo.createEnvironment(item);
       await onChanged();
@@ -2118,6 +2124,52 @@ function EnvironmentManager({
     } finally {
       setBusy(false);
     }
+  };
+  const addCollectionVariables = () => {
+    if (!draft) return;
+    const discovered = new Set<string>();
+    requests.forEach((item) =>
+      requestVariableNames(item).forEach((name) => discovered.add(name.trim())),
+    );
+    environments.forEach((item) =>
+      item.variables.forEach((variable) => {
+        if (variable.key.trim()) discovered.add(variable.key.trim());
+      }),
+    );
+
+    const existing = new Set(
+      draft.variables.map((variable) => variable.key.trim()).filter(Boolean),
+    );
+    const missing = [...discovered]
+      .filter((name) => name && !existing.has(name))
+      .sort((left, right) => left.localeCompare(right));
+    if (!missing.length) {
+      setVariableImportNotice(
+        discovered.size
+          ? "All collection variables are already included."
+          : "No collection variables were found.",
+      );
+      return;
+    }
+
+    const retained = draft.variables.filter(
+      (variable) => variable.key || variable.value,
+    );
+    setDraft({
+      ...draft,
+      variables: [
+        ...retained,
+        ...missing.map((key) => ({
+          id: newId(),
+          key,
+          value: "",
+          enabled: true,
+        })),
+      ],
+    });
+    setVariableImportNotice(
+      `Added ${missing.length} collection variable${missing.length === 1 ? "" : "s"}. Add the correct value for this environment, then save.`,
+    );
   };
   const removeEnvironment = async () => {
     if (!draft) return;
@@ -2189,11 +2241,26 @@ function EnvironmentManager({
                     }
                   />
                 </label>
-                <p className="environment-help">
-                  Scoped to <strong>{collection.name}</strong>. Use variables in
-                  requests as <code>{"{{base_url}}"}</code>. Enabled values are
-                  resolved only when sending.
-                </p>
+                <div className="environment-variable-toolbar">
+                  <p className="environment-help">
+                    Scoped to <strong>{collection.name}</strong>. Use variables in
+                    requests as <code>{"{{base_url}}"}</code>. Enabled values are
+                    resolved only when sending.
+                  </p>
+                  <button
+                    className="secondary"
+                    type="button"
+                    disabled={busy}
+                    onClick={addCollectionVariables}
+                  >
+                    <Plus size={15} /> Add collection variables
+                  </button>
+                </div>
+                {variableImportNotice && (
+                  <p className="environment-import-notice" role="status">
+                    {variableImportNotice}
+                  </p>
+                )}
                 <KeyValueEditor
                   value={draft.variables}
                   onChange={(variables) => setDraft({ ...draft, variables })}
