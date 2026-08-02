@@ -130,6 +130,47 @@ class McpPlanningTest extends TestCase
             ->assertJsonPath('result.structuredContent.error.reason', 'Step tool is not allowlisted.');
     }
 
+    public function test_reviewed_issue_payment_routes_license_renewal_uat_without_calling_qwen(): void
+    {
+        config(['mcp.execution.enabled' => true]);
+        $context = ['workspace_id' => self::WORKSPACE_ID, 'collection_id' => self::COLLECTION_ID, 'environment_id' => self::ENVIRONMENT_ID, 'request_id' => null];
+        Http::fake(fn (Request $request) => str_ends_with($request->url(), '/auth/v1/user')
+            ? Http::response(['id' => self::USER_ID]) : Http::response([], 500));
+
+        $this->withToken('user-access-token')->postJson('/api/mcp', $this->rpc('tools/call', [
+            'name' => 'plan_request', 'arguments' => [
+                'message' => 'Issue payment for national id 436415528 on License Renewal service on User Testing Environment.',
+                'mode' => 'confirm_writes', 'context' => $context,
+            ],
+        ]))->assertOk()
+            ->assertJsonPath('result.isError', false)
+            ->assertJsonPath('result.structuredContent.data.plan.intent', 'issue_payment')
+            ->assertJsonPath('result.structuredContent.data.plan.steps.0.tool', 'prepare_issue_payment')
+            ->assertJsonPath('result.structuredContent.data.plan.steps.0.arguments.service', 'license_renewal')
+            ->assertJsonPath('result.structuredContent.data.plan.steps.0.arguments.target_environment', 'uat')
+            ->assertJsonPath('result.structuredContent.data.model.runtime', 'deterministic');
+
+        Http::assertNotSent(fn (Request $request) => str_ends_with($request->url(), '/api/chat'));
+    }
+
+    public function test_reviewed_issue_payment_routes_teacher_registration_production(): void
+    {
+        config(['mcp.execution.enabled' => true]);
+        $context = ['workspace_id' => self::WORKSPACE_ID, 'collection_id' => null, 'environment_id' => null, 'request_id' => null];
+        Http::fake(fn (Request $request) => str_ends_with($request->url(), '/auth/v1/user')
+            ? Http::response(['id' => self::USER_ID]) : Http::response([], 500));
+
+        $this->withToken('user-access-token')->postJson('/api/mcp', $this->rpc('tools/call', [
+            'name' => 'plan_request', 'arguments' => [
+                'message' => 'Issue payment for national ID 436415528 on Teacher Registrations service in Production.',
+                'mode' => 'confirm_writes', 'context' => $context,
+            ],
+        ]))->assertOk()
+            ->assertJsonPath('result.isError', false)
+            ->assertJsonPath('result.structuredContent.data.plan.steps.0.arguments.service', 'teacher_registration')
+            ->assertJsonPath('result.structuredContent.data.plan.steps.0.arguments.target_environment', 'production');
+    }
+
     public function test_reviewed_issue_license_intent_is_normalized_to_safe_preparation(): void
     {
         config(['mcp.execution.enabled' => true]);

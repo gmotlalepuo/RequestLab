@@ -46,6 +46,7 @@ import {
   importPostmanCollection,
 } from "@/src/lib/postman";
 import { newId } from "@/src/lib/id";
+import { syncUrlQueryParams } from "@/src/lib/request-url";
 import type {
   ApiRequest,
   ApiResponse,
@@ -201,13 +202,10 @@ const createCurl = (request: ApiRequest, variables: KeyValue[] = []) => {
       /\{\{\s*([^{}]+?)\s*\}\}/g,
       (match, key: string) => values.get(key) ?? match,
     );
-  let url = resolve(request.url.trim());
+  let url = resolve(
+    syncUrlQueryParams(request.url.trim(), request.params, request.params),
+  );
   if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
-  const params = request.params
-    .filter((item) => item.enabled && item.key)
-    .map((item) => [resolve(item.key), resolve(item.value)]);
-  if (params.length)
-    url += `${url.includes("?") ? "&" : "?"}${new URLSearchParams(params).toString()}`;
   const headers = request.headers
     .filter((item) => item.enabled && item.key)
     .map((item) => [resolve(item.key), resolve(item.value)] as const);
@@ -1674,7 +1672,17 @@ export default function ApiClient({
                 {requestTab === "Params" && (
                   <KeyValueEditor
                     value={request.params}
-                    onChange={(params) => setRequest({ ...request, params })}
+                    onChange={(params) =>
+                      setRequest({
+                        ...request,
+                        url: syncUrlQueryParams(
+                          request.url,
+                          request.params,
+                          params,
+                        ),
+                        params,
+                      })
+                    }
                     keyLabel="Parameter"
                   />
                 )}

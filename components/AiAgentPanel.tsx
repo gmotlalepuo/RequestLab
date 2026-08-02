@@ -14,6 +14,7 @@ type Confirmation = {
   plan_digest: string;
   expires_at: string;
   preview: Record<string, unknown>;
+  workflow_name?: string;
 };
 type Message = {
   id: string;
@@ -23,7 +24,7 @@ type Message = {
   confirmationState?: "pending" | "running" | "approved" | "failed" | "cancelled";
 };
 type Conversation = { id: string; title: string; last_message_at: string | null };
-type AuditItem = { id: string; workflow_name: string | null; method: string; resolved_host: string; status: string; duration_ms: number | null; upstream_status: number | null; created_at: string };
+type AuditItem = { id: string; workflow_name: string | null; method: string; resolved_host: string; status: string; duration_ms: number | null; upstream_status: number | null; outcome_summary?: Record<string, unknown> | null; created_at: string };
 type PlanStep = {
   tool: string;
   operation: string;
@@ -196,6 +197,27 @@ export default function AiAgentPanel({
             confirmationState: "pending",
           });
         }
+        if (step.tool === "prepare_issue_payment") {
+          const args = step.arguments;
+          const prepared = toolData(await mcp("tools/call", {
+            name: "prepare_issue_payment",
+            arguments: {
+              workspace_id: context.workspaceId,
+              collection_id: context.collectionId,
+              environment_id: context.environmentId,
+              national_id: args.national_id,
+              service: args.service,
+              target_environment: args.target_environment,
+            },
+          })) as unknown as Confirmation;
+          await emit({
+            id: crypto.randomUUID(),
+            role: "agent",
+            text: "The payment endpoint has been resolved and verified. Review the environment, service, record, and exact change before approving it.",
+            confirmation: prepared,
+            confirmationState: "pending",
+          });
+        }
       }
     } catch (error) {
       const failure: Message = { id: crypto.randomUUID(), role: "error", text: error instanceof Error ? error.message : "The agent could not complete the request." };
@@ -217,13 +239,16 @@ export default function AiAgentPanel({
         body: JSON.stringify({
           confirmation_id: message.confirmation.confirmation_id,
           plan_digest: message.confirmation.plan_digest,
-          idempotency_key: `issue-license:${crypto.randomUUID()}`,
+          idempotency_key: `${message.confirmation.workflow_name || "reviewed-write"}:${crypto.randomUUID()}`,
         }),
       });
       const value = await response.json();
       if (!response.ok) throw new Error(value.error?.message || value.error || "The confirmed write failed.");
       update(message.id, { confirmationState: "approved" });
-      const reply: Message = { id: crypto.randomUUID(), role: "agent", text: `Completed safely. Execution ${value.data.execution_id} finished with status ${value.data.status}.` };
+      const details = value.data.workflow_name === "issue_payment"
+        ? ` Payment for ${value.data.service} in ${value.data.environment} on national ID ${value.data.national_id} ${value.data.status === "succeeded" ? "succeeded" : "failed"}. Host: ${value.data.host}.`
+        : "";
+      const reply: Message = { id: crypto.randomUUID(), role: "agent", text: `Completed safely. Execution ${value.data.execution_id} finished with status ${value.data.status}.${details}` };
       add(reply);
       if (conversationId) await persist(conversationId, reply);
     } catch (error) {
@@ -260,7 +285,7 @@ export default function AiAgentPanel({
       {view !== "chat" && <div className="ai-agent-subhead"><button onClick={() => setView("chat")}><ArrowLeft size={14} />Chat</button><strong>{view === "history" ? "Chat history" : "Execution audit"}</strong></div>}
       <div className="ai-agent-log" ref={logRef} role="log" aria-live="polite">
         {view === "history" && <div className="ai-history">{conversations.length === 0 ? <p>No saved chats in this workspace.</p> : conversations.map((item) => <div key={item.id}><button onClick={() => void openConversation(item.id)}><strong>{item.title}</strong><small>{item.last_message_at ? new Date(item.last_message_at).toLocaleString() : "Empty chat"}</small></button><button onClick={() => void archiveConversation(item.id)} aria-label={`Archive ${item.title}`}><Trash2 size={14} /></button></div>)}</div>}
-        {view === "audit" && <div className="ai-audit">{audit.length === 0 ? <p>No executions in this workspace.</p> : audit.map((item) => <article key={item.id}><div><strong>{item.workflow_name || `${item.method} request`}</strong><span className={item.status}>{item.status}</span></div><small>{item.method} · {item.resolved_host}</small><small>{item.upstream_status || "—"} · {item.duration_ms ?? "—"} ms · {new Date(item.created_at).toLocaleString()}</small></article>)}</div>}
+        {view === "audit" && <div className="ai-audit">{audit.length === 0 ? <p>No executions in this workspace.</p> : audit.map((item) => <article key={item.id}><div><strong>{item.workflow_name || `${item.method} request`}</strong><span className={item.status}>{item.status}</span></div><small>{item.method} · {item.resolved_host}</small>{item.workflow_name === "issue_payment" && item.outcome_summary && <small>{String(item.outcome_summary.service || "Payment")} · {String(item.outcome_summary.environment || "Unknown environment")} · ID {String(item.outcome_summary.national_id || "—")}</small>}<small>{item.upstream_status || "—"} · {item.duration_ms ?? "—"} ms · {new Date(item.created_at).toLocaleString()}</small></article>)}</div>}
         {view === "chat" && messages.map((message) => (
           <article className={`ai-message ${message.role}`} key={message.id}>
             <span className="ai-message-icon">{message.role === "user" ? <UserRound size={15} /> : message.role === "error" ? <AlertCircle size={15} /> : <Bot size={15} />}</span>

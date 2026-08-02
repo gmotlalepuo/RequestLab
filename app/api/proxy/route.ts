@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import type { ApiRequest, ApiResponse } from '@/src/types';
 import { createClient } from '@/lib/supabase/server';
 import { assertSafeOutboundUrl, assertSameOrigin, consumeRateLimit, HttpError, readJson, requestIdentity } from '@/lib/security/http';
+import { syncUrlQueryParams } from '@/src/lib/request-url';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -79,12 +80,9 @@ const fetchSafely = async (initialUrl: string, init: RequestInit) => {
 };
 
 const buildUrl = (request: ApiRequest) => {
-  let url = request.url.trim();
+  let url = syncUrlQueryParams(request.url.trim(), request.params, request.params);
   if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
-  const params = request.params.filter((item) => item.enabled && item.key);
-  if (!params.length) return url;
-  const query = new URLSearchParams(params.map((item) => [item.key, item.value])).toString();
-  return `${url}${url.includes('?') ? '&' : '?'}${query}`;
+  return url;
 };
 
 const resolveEnvironment = (request: ApiRequest): ApiRequest => {

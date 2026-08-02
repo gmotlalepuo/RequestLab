@@ -17,6 +17,10 @@ class PlanningService
 
     public function plan(string $message, string $mode, array $context): array
     {
+        $payment = $this->reviewedIssuePaymentPlan($message, $mode, $context);
+        if ($payment !== null) {
+            return $payment;
+        }
         $reviewed = $this->reviewedIssueLicensePlan($message, $mode, $context);
         if ($reviewed !== null) {
             return $reviewed;
@@ -49,6 +53,65 @@ class PlanningService
                 'duration_ms' => $response->durationNanoseconds === null ? null : (int) round($response->durationNanoseconds / 1_000_000),
             ],
             'execution_enabled' => (bool) config('mcp.execution.enabled'),
+            'write_approval' => 'separate_authenticated_route',
+        ];
+    }
+
+    private function reviewedIssuePaymentPlan(string $message, string $mode, array $context): ?array
+    {
+        if (!config('mcp.execution.enabled') || $mode !== 'confirm_writes') return null;
+        $currentMessage = str_contains($message, "Current user request:\n")
+            ? (string) preg_replace('/^.*Current user request:\n/s', '', $message)
+            : $message;
+        if (preg_match('/\b(?:issue|initiate|create|generate)\s+(?:a\s+)?payment\b/i', $currentMessage) !== 1) return null;
+
+        $nationalId = preg_match('/\bnational[\s_-]*id\b\s*(?:is|:|=|#)?\s*([A-Za-z0-9-]{5,40})\b/i', $currentMessage, $idMatches) === 1
+            ? $idMatches[1] : null;
+        $service = preg_match('/\blicen[cs]e\s+renewal\b/i', $currentMessage) === 1
+            ? 'license_renewal'
+            : (preg_match('/\bteacher\s+registrations?\b/i', $currentMessage) === 1 ? 'teacher_registration' : null);
+        $targetEnvironment = preg_match('/\b(?:production|prod)\b/i', $currentMessage) === 1
+            ? 'production'
+            : (preg_match('/\b(?:uat|user\s+(?:acceptance\s+)?testing)\b/i', $currentMessage) === 1 ? 'uat' : null);
+        $inputs = array_filter([
+            'national_id' => $nationalId,
+            'service' => $service,
+            'target_environment' => $targetEnvironment,
+        ], fn ($value) => $value !== null);
+        $missing = array_values(array_diff(['national_id', 'service', 'target_environment'], array_keys($inputs)));
+        $plan = [
+            'contract_version' => '1.0',
+            'intent' => 'issue_payment',
+            'mode' => $mode,
+            'context' => $context,
+            'inputs' => $inputs,
+            'missing_inputs' => $missing,
+            'steps' => $missing ? [] : [[
+                'id' => 'prepare_issue_payment',
+                'tool' => 'prepare_issue_payment',
+                'operation' => sprintf(
+                    'Resolve the %s payment endpoint for %s and prepare the Manager-Approved write for confirmation.',
+                    $service === 'license_renewal' ? 'License Renewal' : 'Teacher Registrations',
+                    $targetEnvironment === 'production' ? 'Production' : 'User Acceptance Testing',
+                ),
+                'effect' => 'read',
+                'arguments' => [
+                    'workspace_id' => $context['workspace_id'],
+                    'collection_id' => $context['collection_id'] ?? null,
+                    'environment_id' => $context['environment_id'] ?? null,
+                    'national_id' => $nationalId,
+                    'service' => $service,
+                    'target_environment' => $targetEnvironment,
+                ],
+                'depends_on' => [],
+                'requires_confirmation' => false,
+            ]],
+        ];
+
+        return [
+            'plan' => $this->validator->validate($plan, $mode, $context),
+            'model' => ['runtime' => 'deterministic', 'name' => 'reviewed-workflow-router', 'prompt_tokens' => 0, 'completion_tokens' => 0, 'duration_ms' => 0],
+            'execution_enabled' => true,
             'write_approval' => 'separate_authenticated_route',
         ];
     }
