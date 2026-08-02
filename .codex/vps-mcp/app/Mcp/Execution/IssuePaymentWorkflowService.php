@@ -14,8 +14,8 @@ class IssuePaymentWorkflowService
     ];
 
     private const SERVICES = [
-        'teacher_registration' => ['teacher registration', 'teacher registrations'],
-        'license_renewal' => ['license renewal'],
+        'teacher_registration' => ['teacher registration', 'teacher registrations', 'teacherregistration', 'teacherregistrations'],
+        'license_renewal' => ['license renewal', 'licenserenewal'],
     ];
 
     public function __construct(
@@ -37,6 +37,12 @@ class IssuePaymentWorkflowService
         $definitionDigest = $this->definitionDigest($request);
         $serviceLabel = $arguments['service'] === 'license_renewal' ? 'License Renewal' : 'Teacher Registrations';
         $environmentLabel = $arguments['target_environment'] === 'production' ? 'Production' : 'User Acceptance Testing';
+        $executionOverrides = [
+            $request['_national_id_variable'] => $arguments['national_id'],
+        ];
+        if (is_string($request['_reg_status_variable'] ?? null)) {
+            $executionOverrides[$request['_reg_status_variable']] = 'Manager-Approved';
+        }
 
         $plan = [
             'user_id' => $user->id,
@@ -54,6 +60,7 @@ class IssuePaymentWorkflowService
             ],
             'update_definition_digest' => $definitionDigest,
             'resolved_host' => $host,
+            'execution_overrides' => $executionOverrides,
         ];
         $planDigest = $this->digest->make($plan);
         $preview = [
@@ -81,6 +88,7 @@ class IssuePaymentWorkflowService
             'service_label' => $serviceLabel,
             'environment_label' => $environmentLabel,
             'update_definition_digest' => $definitionDigest,
+            'execution_overrides' => $executionOverrides,
         ]) + ['requires_confirmation' => true, 'workflow_name' => 'issue_payment'];
     }
 
@@ -88,7 +96,9 @@ class IssuePaymentWorkflowService
     {
         $collections = $repository->listCollections($arguments['workspace_id']);
         $selected = $arguments['collection_id'] ?? null;
-        usort($collections, fn ($left, $right) => (int) (($right['id'] ?? null) === $selected) <=> (int) (($left['id'] ?? null) === $selected));
+        usort($collections, fn ($left, $right) =>
+            $this->collectionPriority($right, $selected) <=> $this->collectionPriority($left, $selected)
+        );
 
         foreach ($collections as $collection) {
             $environment = $this->findEnvironment($repository->listEnvironments($collection['id']), $arguments['target_environment']);
@@ -139,15 +149,43 @@ class IssuePaymentWorkflowService
         foreach ($repository->listRequests($collectionId, $folderId) as $summary) {
             if (!in_array(strtoupper((string) ($summary['method'] ?? '')), ['PUT', 'PATCH'], true)) continue;
             $request = $repository->getRequest($summary['id']);
-            if (!str_contains((string) ($request['url'] ?? ''), '{{national_id}}')) continue;
+            $url = (string) ($request['url'] ?? '');
+            preg_match_all('/\{\{\s*([^{}]+?)\s*\}\}/', $url, $placeholderMatches);
+            $nationalIdVariable = null;
+            foreach ($placeholderMatches[1] ?? [] as $placeholder) {
+                if ($this->compactNormalize((string) $placeholder) === 'nationalid') {
+                    $nationalIdVariable = trim((string) $placeholder);
+                    break;
+                }
+            }
+            if ($nationalIdVariable === null) continue;
             $pathNeedle = $service === 'license_renewal' ? 'license-renewal' : 'teacher_registrations';
-            if (!str_contains(strtolower((string) $request['url']), $pathNeedle)) continue;
+            if (!str_contains(strtolower($url), $pathNeedle)) continue;
             $hasStatus = false;
+            $regStatusVariable = null;
             foreach ($request['params'] ?? [] as $row) {
-                if (is_array($row) && ($row['enabled'] ?? true) === true && ($row['key'] ?? null) === 'reg_status') $hasStatus = true;
+                if (!is_array($row) || ($row['enabled'] ?? true) !== true || $this->compactNormalize((string) ($row['key'] ?? '')) !== 'regstatus') continue;
+                $hasStatus = true;
+                if (preg_match('/^\{\{\s*([^{}]+?)\s*\}\}$/', (string) ($row['value'] ?? ''), $match)) {
+                    $regStatusVariable = trim($match[1]);
+                }
+            }
+            $query = (string) (parse_url($url, PHP_URL_QUERY) ?? '');
+            foreach (explode('&', $query) as $pair) {
+                [$key, $value] = array_pad(explode('=', $pair, 2), 2, '');
+                if ($this->compactNormalize(urldecode($key)) !== 'regstatus') continue;
+                $decodedValue = urldecode($value);
+                if (strcasecmp($decodedValue, 'Manager-Approved') === 0) $hasStatus = true;
+                if (preg_match('/^\{\{\s*([^{}]+?)\s*\}\}$/', $decodedValue, $match)) {
+                    $hasStatus = true;
+                    $regStatusVariable = trim($match[1]);
+                }
             }
             if (!$hasStatus) continue;
-            $score = str_contains($this->normalize((string) ($request['name'] ?? '')), 'issue payment') ? 100 : 0;
+            $request['_national_id_variable'] = $nationalIdVariable;
+            $request['_reg_status_variable'] = $regStatusVariable;
+            $normalizedName = $this->normalize((string) ($request['name'] ?? ''));
+            $score = str_contains($normalizedName, 'issue payment') ? 100 : (str_contains($normalizedName, 'status') ? 50 : 0);
             $candidates[] = [$score, $request];
         }
         usort($candidates, fn ($left, $right) => $right[0] <=> $left[0]);
@@ -161,7 +199,10 @@ class IssuePaymentWorkflowService
             if (is_array($row) && ($row['enabled'] ?? true) === true && is_string($row['key'] ?? null)) $variables[$row['key']] = (string) ($row['value'] ?? '');
         }
         $variables['national_id'] = $arguments['national_id'];
+        $variables['nationalId'] = $arguments['national_id'];
         $variables['reg_status'] = 'Manager-Approved';
+        $variables['regStatus'] = 'Manager-Approved';
+        $variables['targetRegStatus'] = 'Manager-Approved';
         $url = preg_replace_callback('/\{\{\s*([^{}]+?)\s*\}\}/', fn ($match) => $variables[trim($match[1])] ?? $match[0], (string) $request['url']);
         if (str_contains($url, '{{') || !is_string(parse_url($url, PHP_URL_HOST))) {
             throw new McpException('ENVIRONMENT_VARIABLES_MISSING', 'The selected environment cannot resolve the reviewed payment endpoint URL.', httpStatus: 422);
@@ -179,6 +220,19 @@ class IssuePaymentWorkflowService
     private function normalize(string $value): string
     {
         return trim((string) preg_replace('/[^a-z0-9]+/', ' ', strtolower($value)));
+    }
+
+    private function compactNormalize(string $value): string
+    {
+        return (string) preg_replace('/[^a-z0-9]+/', '', strtolower($value));
+    }
+
+    private function collectionPriority(array $collection, ?string $selected): int
+    {
+        $name = $this->normalize((string) ($collection['name'] ?? ''));
+        if (preg_match('/\blatest\b/', $name)) return 300;
+        if (preg_match('/\bold\b/', $name)) return 0;
+        return (($collection['id'] ?? null) === $selected) ? 200 : 100;
     }
 
     private function maskNationalId(string $value): string

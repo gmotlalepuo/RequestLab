@@ -148,6 +148,9 @@ class ApprovedWorkflowExecutor
         if (!in_array($payload['method'], ['PUT', 'PATCH'], true)) {
             throw new McpException('CONFIRMATION_INVALID', 'The confirmed payment method is invalid.', httpStatus: 422);
         }
+        if (!is_array($payload['execution_overrides'] ?? null) || $payload['execution_overrides'] === []) {
+            throw new McpException('CONFIRMATION_INVALID', 'The confirmed payment overrides are invalid.', httpStatus: 422);
+        }
 
         $reservation = $this->ledger->reserve([
             'user_id' => $user->id,
@@ -176,7 +179,7 @@ class ApprovedWorkflowExecutor
                 $payload['environment_id'],
                 $payload['collection_id'],
                 $payload['method'],
-                ['national_id' => $payload['national_id'], 'reg_status' => 'Manager-Approved'],
+                $payload['execution_overrides'],
                 $payload['update_definition_digest'],
                 $payload['expected_host'],
             );
