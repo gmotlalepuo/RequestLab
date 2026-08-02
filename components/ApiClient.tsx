@@ -2125,51 +2125,111 @@ function EnvironmentManager({
       setBusy(false);
     }
   };
-  const addCollectionVariables = () => {
+  const addCollectionVariables = async () => {
     if (!draft) return;
-    const discovered = new Set<string>();
-    requests.forEach((item) =>
-      requestVariableNames(item).forEach((name) => discovered.add(name.trim())),
-    );
-    environments.forEach((item) =>
-      item.variables.forEach((variable) => {
-        if (variable.key.trim()) discovered.add(variable.key.trim());
-      }),
-    );
-
-    const existing = new Set(
-      draft.variables.map((variable) => variable.key.trim()).filter(Boolean),
-    );
-    const missing = [...discovered]
-      .filter((name) => name && !existing.has(name))
-      .sort((left, right) => left.localeCompare(right));
-    if (!missing.length) {
-      setVariableImportNotice(
-        discovered.size
-          ? "All collection variables are already included."
-          : "No collection variables were found.",
+    setBusy(true);
+    setError("");
+    try {
+      const workspaceCollections = await repo.listCollections(workspace.id);
+      const otherCollections = workspaceCollections.filter(
+        (item) => item.id !== collection.id,
       );
-      return;
-    }
+      const otherEnvironments = (
+        await Promise.all(
+          otherCollections.map((item) => repo.listEnvironments(item.id)),
+        )
+      ).flat();
+      const normalizeName = (value: string) =>
+        value.trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      const matchingWorkspaceEnvironments = otherEnvironments.filter(
+        (item) => normalizeName(item.name) === normalizeName(draft.name),
+      );
+      const siblingEnvironments = environments.filter(
+        (item) => item.id !== draft.id,
+      );
+      const discovered = new Set<string>();
+      const preferredValues = new Map<string, Set<string>>();
+      const fallbackValues = new Map<string, Set<string>>();
+      requests.forEach((item) =>
+        requestVariableNames(item).forEach((name) => discovered.add(name.trim())),
+      );
+      const collectValues = (
+        sources: Environment[],
+        target: Map<string, Set<string>>,
+      ) => sources.forEach((item) =>
+        item.variables.forEach((variable) => {
+        const key = variable.key.trim();
+        const value = variable.value.trim();
+        if (!key) return;
+        discovered.add(key);
+        if (!variable.enabled || !value) return;
+        const values = target.get(key) ?? new Set<string>();
+        values.add(variable.value);
+        target.set(key, values);
+        }),
+      );
+      collectValues(matchingWorkspaceEnvironments, preferredValues);
+      collectValues(siblingEnvironments, fallbackValues);
 
-    const retained = draft.variables.filter(
-      (variable) => variable.key || variable.value,
-    );
-    setDraft({
-      ...draft,
-      variables: [
-        ...retained,
-        ...missing.map((key) => ({
-          id: newId(),
-          key,
-          value: "",
-          enabled: true,
-        })),
-      ],
-    });
-    setVariableImportNotice(
-      `Added ${missing.length} collection variable${missing.length === 1 ? "" : "s"}. Add the correct value for this environment, then save.`,
-    );
+      const valuesFor = (key: string) =>
+        preferredValues.get(key)?.size
+          ? preferredValues.get(key)
+          : fallbackValues.get(key);
+      const suggestedValue = (key: string) => {
+        const values = valuesFor(key);
+        return values?.size === 1 ? [...values][0] : "";
+      };
+
+      const existing = new Set(
+        draft.variables.map((variable) => variable.key.trim()).filter(Boolean),
+      );
+      const missing = [...discovered]
+        .filter((name) => name && !existing.has(name))
+        .sort((left, right) => left.localeCompare(right));
+      let filledExisting = 0;
+      const retained = draft.variables
+        .filter((variable) => variable.key || variable.value)
+        .map((variable) => {
+          const imported = !variable.value && variable.key.trim()
+            ? suggestedValue(variable.key.trim())
+            : "";
+          if (imported) filledExisting += 1;
+          return imported ? { ...variable, value: imported } : variable;
+        });
+      if (!missing.length && !filledExisting) {
+        setVariableImportNotice(
+          discovered.size
+            ? "All discoverable variables and available values are already included."
+            : "No variables were found in this collection or matching workspace environments.",
+        );
+        return;
+      }
+
+      const added = missing.map((key) => ({
+        id: newId(),
+        key,
+        value: suggestedValue(key),
+        enabled: true,
+      }));
+      const copiedValues = added.filter((variable) => variable.value).length;
+      const needsReview = added.filter(
+        (variable) => !variable.value && (valuesFor(variable.key)?.size ?? 0) > 1,
+      ).length;
+      setDraft({ ...draft, variables: [...retained, ...added] });
+      const changes = [
+        missing.length ? `Added ${missing.length} variable${missing.length === 1 ? "" : "s"}` : "",
+        copiedValues + filledExisting ? `copied ${copiedValues + filledExisting} value${copiedValues + filledExisting === 1 ? "" : "s"}` : "",
+        needsReview ? `left ${needsReview} conflicting value${needsReview === 1 ? "" : "s"} blank` : "",
+      ].filter(Boolean);
+      const source = matchingWorkspaceEnvironments.length
+        ? ` from ${matchingWorkspaceEnvironments.length} matching “${draft.name}” environment${matchingWorkspaceEnvironments.length === 1 ? "" : "s"}`
+        : "";
+      setVariableImportNotice(`${changes.join(", ")}${source}. Review the editable values, then save.`);
+    } catch (cause) {
+      setError((cause as Error).message);
+    } finally {
+      setBusy(false);
+    }
   };
   const removeEnvironment = async () => {
     if (!draft) return;
@@ -2251,9 +2311,9 @@ function EnvironmentManager({
                     className="secondary"
                     type="button"
                     disabled={busy}
-                    onClick={addCollectionVariables}
+                    onClick={() => void addCollectionVariables()}
                   >
-                    <Plus size={15} /> Add collection variables
+                    <Plus size={15} /> Sync collection variables
                   </button>
                 </div>
                 {variableImportNotice && (
