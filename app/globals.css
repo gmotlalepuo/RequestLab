@@ -5195,6 +5195,17 @@ html[data-theme="dark"] .app-dialog,
 html[data-theme="dark"] .documentation-modal { background: var(--surface); color: var(--text); }
 html[data-theme="light"] .menu-pop button,
 html[data-theme="dark"] .menu-pop button { color: var(--text); }
+html[data-theme="light"] .body-code-editor .body-input.highlighted {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  caret-color: var(--text) !important;
+  background: transparent !important;
+}
+html[data-theme="light"] .body-code-editor .body-highlight {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
 
 /* Shared accessible dialogs replace browser prompts across the workbench. */
 .app-dialog-scrim { z-index: 400; padding: 20px; }
