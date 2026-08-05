@@ -5614,6 +5614,9 @@ html[data-theme="dark"] .app-shell {
 .error-text { color: var(--danger, #ef4444); }
 .file-value-picker { width: 100%; min-height: 36px; padding: 8px 11px; overflow: hidden; border: 1px solid var(--border); border-radius: var(--control-radius, 7px); background: var(--surface); color: var(--text); text-align: left; text-overflow: ellipsis; white-space: nowrap; font: inherit; cursor: pointer; }
 .file-value-picker:hover { border-color: var(--border-strong, var(--brand)); background: var(--surface-2); }
+.response-body-viewer { min-height: 100%; }
+.response-format-toolbar { position: sticky; top: 0; z-index: 2; display: flex; padding: 8px 10px; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 94%, transparent); }
+.response-format-toolbar select { min-height: 30px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--text); font: 12px inherit; }
 
 /* Keep the MCP rail legible in both themes. The rail used to carry a dark-only palette. */
 html[data-theme="light"] .ai-agent,

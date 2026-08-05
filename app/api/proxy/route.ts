@@ -156,7 +156,7 @@ export async function POST(incoming: NextRequest) {
     }
     if (request.bodyMode === 'json' && !headers.has('content-type')) headers.set('content-type', 'application/json');
     if (request.bodyMode === 'raw' && !headers.has('content-type')) headers.set('content-type', 'text/plain');
-    if (request.bodyMode === 'form' && !headers.has('content-type')) headers.set('content-type', 'application/x-www-form-urlencoded');
+    if (request.bodyMode === 'form' && !headers.has('content-type') && !request.bodyForm.some((field) => field.fileData)) headers.set('content-type', 'application/x-www-form-urlencoded');
   }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30000);

@@ -164,6 +164,23 @@ const sourceJsonTokens = (value: string) => {
   if (cursor < value.length) result.push(value.slice(cursor));
   return result;
 };
+const formatResponseBody = (value: string, format: string) => {
+  if (format === "Raw" || format === "XML" || format === "HTML" || format === "Markdown" || format === "JavaScript") return value;
+  if (format === "Base64") return btoa(unescape(encodeURIComponent(value)));
+  if (format === "Hex") return Array.from(new TextEncoder().encode(value)).map((byte) => byte.toString(16).padStart(2, "0")).join(" ");
+  if (format === "YAML") {
+    try {
+      const data = JSON.parse(value) as unknown;
+      const lines = (input: unknown, indent = ""): string[] => {
+        if (Array.isArray(input)) return input.flatMap((item) => [`${indent}-`, ...lines(item, `${indent}  `)]);
+        if (input && typeof input === "object") return Object.entries(input).flatMap(([key, item]) => [`${indent}${key}:`, ...lines(item, `${indent}  `)]);
+        return [`${indent}${input === null ? "null" : JSON.stringify(input)}`];
+      };
+      return lines(data).join("\n");
+    } catch { return value; }
+  }
+  return value;
+};
 const requestVariableNames = (request: ApiRequest) => {
   const values = [
     request.url,
@@ -413,6 +430,7 @@ export default function ApiClient({
   >("Params");
   const [responseTab, setResponseTab] = useState<"Body" | "Headers">("Body");
   const [response, setResponse] = useState<ApiResponse | null>(null);
+  const [responseFormat, setResponseFormat] = useState<"JSON" | "XML" | "HTML" | "YAML" | "JavaScript" | "Markdown" | "Raw" | "Hex" | "Base64">("JSON");
   const [responseHeight, setResponseHeight] = useState(360);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -1796,16 +1814,22 @@ export default function ApiClient({
                   />
                   <div className="response-content">
                     {responseTab === "Body" ? (
-                      <pre className="json-viewer">
+                      <div className="response-body-viewer">
+                        <div className="response-format-toolbar">
+                          <select aria-label="Response format" value={responseFormat} onChange={(event) => setResponseFormat(event.target.value as typeof responseFormat)}>
+                            {["JSON", "XML", "HTML", "YAML", "JavaScript", "Markdown", "Raw", "Hex", "Base64"].map((format) => <option key={format}>{format}</option>)}
+                          </select>
+                        </div>
+                        <pre className="json-viewer">
                         <code>
-                          {(jsonTokens(response.body, async (value) => {
+                          {responseFormat === "JSON" ? (jsonTokens(response.body, async (value) => {
                             try { await navigator.clipboard.writeText(value); notify("Value copied"); }
                             catch { setError("Could not copy this value. Check browser clipboard permission."); }
-                          }) ??
-                            pretty(response.body)) ||
+                          }) ?? pretty(response.body)) : formatResponseBody(response.body, responseFormat) ||
                             "(empty body)"}
                         </code>
-                      </pre>
+                        </pre>
+                      </div>
                     ) : (
                       response.headers.map((h, i) => (
                         <div className="header-line" key={`${h.key}-${i}`}>
