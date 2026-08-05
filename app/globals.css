@@ -5587,3 +5587,36 @@ html[data-theme="dark"] .app-shell {
 .binary-file-card strong, .binary-file-card small { display: block; }
 .binary-file-card small { margin-top: 4px; color: var(--muted); }
 .error-text { color: var(--danger, #ef4444); }
+
+/* Keep the MCP rail legible in both themes. The rail used to carry a dark-only palette. */
+html[data-theme="light"] .ai-agent,
+html[data-theme="light"] #requestlab-ai-agent { background: var(--surface) !important; color: var(--text) !important; border-color: var(--border) !important; }
+html[data-theme="light"] .ai-agent > header,
+html[data-theme="light"] .ai-agent-subhead,
+html[data-theme="light"] .ai-agent-context { border-color: var(--border) !important; }
+html[data-theme="light"] .ai-agent > header small,
+html[data-theme="light"] .ai-agent-subhead button,
+html[data-theme="light"] .ai-history > p,
+html[data-theme="light"] .ai-audit > p,
+html[data-theme="light"] .ai-history small,
+html[data-theme="light"] .ai-audit small,
+html[data-theme="light"] .ai-thinking,
+html[data-theme="light"] .ai-composer > div > span { color: var(--muted) !important; }
+html[data-theme="light"] .ai-agent > header .icon-button,
+html[data-theme="light"] .ai-message p,
+html[data-theme="light"] .ai-confirmation dd { color: var(--text) !important; }
+html[data-theme="light"] .ai-agent > header .icon-button:hover { background: var(--surface-2) !important; color: var(--text) !important; }
+html[data-theme="light"] .ai-history button,
+html[data-theme="light"] .ai-audit article,
+html[data-theme="light"] .ai-message.user > div,
+html[data-theme="light"] .ai-composer { background: var(--surface-2) !important; color: var(--text) !important; border-color: var(--border) !important; }
+html[data-theme="light"] .ai-agent-context span { color: var(--danger) !important; }
+html[data-theme="light"] .ai-agent-context span.ready { color: var(--success) !important; }
+html[data-theme="light"] .ai-composer textarea { color: var(--text) !important; }
+html[data-theme="light"] .ai-composer textarea::placeholder { color: var(--muted) !important; }
+html[data-theme="light"] .ai-confirmation { background: var(--surface-2) !important; border-color: color-mix(in srgb, var(--brand) 35%, var(--border)) !important; }
+html[data-theme="light"] .ai-confirmation dt { color: var(--muted) !important; }
+html[data-theme="light"] .ai-confirmation dl > div { border-color: var(--border) !important; }
+html[data-theme="light"] .ai-agent-mark,
+html[data-theme="light"] .ai-message-icon { background: color-mix(in srgb, var(--brand) 12%, var(--surface-2)) !important; color: var(--brand-dark) !important; }
+html[data-theme="light"] .ai-agent-collapsed > button { background: var(--surface-2) !important; color: var(--text) !important; }

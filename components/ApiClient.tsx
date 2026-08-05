@@ -2837,10 +2837,27 @@ function TreeMenu({
   const positionMenu = () => {
     const rect = detailsRef.current?.getBoundingClientRect();
     if (!rect) return;
-    setMenuPosition({ top: Math.min(window.innerHeight - 12, rect.bottom + 4), left: Math.max(8, rect.right - 158) });
+    const menu = detailsRef.current?.querySelector<HTMLElement>(".menu-pop");
+    const menuHeight = menu?.offsetHeight ?? 180;
+    const spaceBelow = window.innerHeight - rect.bottom - 12;
+    const top = spaceBelow >= menuHeight || rect.top < menuHeight + 12
+      ? rect.bottom + 4
+      : rect.top - menuHeight - 4;
+    setMenuPosition({ top: Math.max(8, Math.min(window.innerHeight - menuHeight - 8, top)), left: Math.max(8, rect.right - 158) });
   };
+  useEffect(() => {
+    const reposition = () => {
+      if (detailsRef.current?.open) positionMenu();
+    };
+    window.addEventListener("resize", reposition);
+    window.addEventListener("scroll", reposition, true);
+    return () => {
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, true);
+    };
+  }, []);
   return (
-    <details ref={detailsRef} className="menu tree-menu" onPointerDown={(event) => event.stopPropagation()} onDragStart={(event) => event.stopPropagation()}>
+    <details ref={detailsRef} className="menu tree-menu" onToggle={positionMenu} onPointerDown={(event) => event.stopPropagation()} onDragStart={(event) => event.stopPropagation()}>
       <summary aria-label={label} onClick={(event) => { event.stopPropagation(); positionMenu(); }}>
         <MoreHorizontal size={15} />
       </summary>
