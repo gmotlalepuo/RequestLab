@@ -144,6 +144,9 @@ export async function POST(incoming: NextRequest) {
       const fields = request.bodyForm.filter((f) => f.enabled && f.key);
       const hasFile = fields.some((field) => field.fileData);
       if (hasFile) {
+        // Let fetch generate the multipart boundary; a manually supplied
+        // urlencoded content type would make the upload unreadable upstream.
+        headers.delete('content-type');
         const form = new FormData();
         fields.forEach((field) => {
           if (field.fileData) {

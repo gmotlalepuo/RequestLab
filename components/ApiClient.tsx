@@ -217,7 +217,10 @@ const createCurl = (request: ApiRequest, variables: KeyValue[] = []) => {
   const resolve = (value = "") =>
     value.replace(
       /\{\{\s*([^{}]+?)\s*\}\}/g,
-      (match, key: string) => values.get(key) ?? match,
+      (match, key: string) => {
+        const resolved = values.get(key);
+        return resolved?.trim() ? resolved : match;
+      },
     );
   let url = resolve(
     syncUrlQueryParams(request.url.trim(), request.params, request.params),
@@ -237,15 +240,21 @@ const createCurl = (request: ApiRequest, variables: KeyValue[] = []) => {
       `Basic ${btoa(`${resolve(request.auth.basicUsername)}:${resolve(request.auth.basicPassword)}`)}`,
     ]);
   let body = "";
+  let multipart = false;
   if (!["GET", "HEAD"].includes(request.method)) {
     if (request.bodyMode === "json" || request.bodyMode === "raw")
       body = resolve(request.bodyRaw);
-    if (request.bodyMode === "form")
-      body = new URLSearchParams(
-        request.bodyForm
-          .filter((item) => item.enabled && item.key)
-          .map((item) => [resolve(item.key), resolve(item.value)]),
-      ).toString();
+    if (request.bodyMode === "form") {
+      const fields = request.bodyForm.filter((item) => item.enabled && item.key);
+      multipart = fields.some((item) => item.fileData);
+      if (multipart) {
+        body = fields.map((item) => item.fileData
+          ? `--form ${shellQuote(`${resolve(item.key)}=@\"/path/to/${item.fileName || item.value || "upload"}\"`)}`
+          : `--form ${shellQuote(`${resolve(item.key)}=${resolve(item.value)}`)}`).join("\n  ");
+      } else {
+        body = new URLSearchParams(fields.map((item) => [resolve(item.key), resolve(item.value)])).toString();
+      }
+    }
     if (
       request.bodyMode === "json" &&
       !headers.some(([key]) => key.toLowerCase() === "content-type")
@@ -253,6 +262,7 @@ const createCurl = (request: ApiRequest, variables: KeyValue[] = []) => {
       headers.push(["Content-Type", "application/json"]);
     if (
       request.bodyMode === "form" &&
+      !multipart &&
       !headers.some(([key]) => key.toLowerCase() === "content-type")
     )
       headers.push(["Content-Type", "application/x-www-form-urlencoded"]);
@@ -263,7 +273,7 @@ const createCurl = (request: ApiRequest, variables: KeyValue[] = []) => {
       ([key, value]) => `  --header ${shellQuote(`${key}: ${value}`)}`,
     ),
   ];
-  if (body) parts.push(`  --data ${shellQuote(body)}`);
+  if (body) parts.push(multipart ? `  ${body}` : `  --data ${shellQuote(body)}`);
   return parts.join(" \\\n");
 };
 
