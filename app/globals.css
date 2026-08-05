@@ -3827,6 +3827,20 @@ html[data-theme="dark"] .tree-method.patch {
 .url-row input {
   font-size: 13px;
 }
+.url-row .request-url-input {
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  min-height: 42px;
+  resize: none;
+  overflow: hidden;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font: 13px/1.35 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
 .send {
   min-width: 92px;
   padding-inline: 16px;
@@ -5633,3 +5647,18 @@ html[data-theme="light"] .ai-confirmation dl > div { border-color: var(--border)
 html[data-theme="light"] .ai-agent-mark,
 html[data-theme="light"] .ai-message-icon { background: color-mix(in srgb, var(--brand) 12%, var(--surface-2)) !important; color: var(--brand-dark) !important; }
 html[data-theme="light"] .ai-agent-collapsed > button { background: var(--surface-2) !important; color: var(--text) !important; }
+
+/* Request variables communicate state at a glance. */
+.variable-hint:not(.missing) .variable-chip { color: var(--success) !important; border-color: color-mix(in srgb, var(--success) 35%, var(--border)); background: color-mix(in srgb, var(--success) 7%, var(--surface-2)); }
+.variable-hint.missing .variable-chip { color: #c26a00 !important; border-color: color-mix(in srgb, #e58a00 45%, var(--border)); background: color-mix(in srgb, #f59e0b 10%, var(--surface-2)); }
+
+/* Keep long endpoint URLs editable on narrow screens instead of truncating them. */
+@media (max-width: 640px) {
+  .url-row { align-items: stretch; flex-wrap: nowrap !important; }
+  .url-row select { flex: 0 0 78px; width: 78px !important; height: auto; min-height: 48px; }
+  .url-row .request-url-input { flex: 1 1 auto !important; width: auto !important; min-width: 0; height: 48px !important; min-height: 48px; padding: 8px 10px; line-height: 1.35; white-space: pre-wrap; overflow-wrap: anywhere; overflow-y: auto; }
+  .url-row .send { flex: 0 0 76px; min-width: 76px; height: auto; min-height: 48px; padding-inline: 8px; }
+  .url-row .send svg { margin-inline: auto; }
+  .url-row .send { font-size: 0; }
+  .url-row .send svg + * { display: none; }
+}

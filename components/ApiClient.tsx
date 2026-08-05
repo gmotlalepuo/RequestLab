@@ -1662,14 +1662,18 @@ export default function ApiClient({
                     <option key={m}>{m}</option>
                   ))}
                 </select>
-                <input
+                <textarea
+                  rows={1}
+                  className="request-url-input"
                   aria-label="Request URL"
                   placeholder="https://api.example.com/users"
                   value={request.url}
                   onChange={(e) =>
                     setRequest({ ...request, url: e.target.value })
                   }
-                  onKeyDown={(e) => e.key === "Enter" && send()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") { e.preventDefault(); void send(); }
+                  }}
                 />
                 <button className="send" disabled={sending} onClick={send}>
                   <Send size={16} />
@@ -1950,7 +1954,7 @@ function EnvironmentVariableHints({
           }
           configured={Boolean(
             environment?.variables.some(
-              (item) => item.enabled && item.key === name,
+              (item) => item.enabled && item.key === name && item.value.trim(),
             ),
           )}
           onSave={onSave}
