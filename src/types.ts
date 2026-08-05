@@ -8,7 +8,7 @@ export type KeyValue = {
 export type HttpMethod =
   "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD" | "OPTIONS";
 
-export type BodyMode = "none" | "json" | "raw" | "form";
+export type BodyMode = "none" | "binary" | "json" | "raw" | "form";
 
 export type AuthType = "none" | "bearer" | "basic";
 
@@ -89,6 +89,9 @@ export type ApiRequest = {
   bodyMode: BodyMode;
   bodyRaw: string;
   bodyForm: KeyValue[];
+  bodyFileName?: string;
+  bodyFileType?: string;
+  bodyFileData?: string;
   auth: RequestAuth;
   environment?: KeyValue[];
   createdAt: string;

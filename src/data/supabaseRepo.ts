@@ -86,6 +86,9 @@ type RequestRow = {
   body_mode: string;
   body_raw: string;
   body_form: ApiRequest["bodyForm"];
+  body_file_name?: string | null;
+  body_file_type?: string | null;
+  body_file_data?: string | null;
   auth: ApiRequest["auth"];
   created_at: string;
 };
@@ -159,6 +162,9 @@ const toRequest = (row: RequestRow): ApiRequest => ({
   bodyMode: (row.body_mode as ApiRequest["bodyMode"]) ?? "none",
   bodyRaw: row.body_raw ?? "",
   bodyForm: row.body_form ?? [],
+  bodyFileName: row.body_file_name ?? "",
+  bodyFileType: row.body_file_type ?? "application/octet-stream",
+  bodyFileData: row.body_file_data ?? "",
   auth: row.auth ?? { type: "none" },
   createdAt: row.created_at,
 });
@@ -177,6 +183,13 @@ const toRequestRow = (request: ApiRequest): Omit<RequestRow, "created_at"> => ({
   body_raw: request.bodyRaw,
   body_form: request.bodyForm,
   auth: request.auth,
+  ...(request.bodyMode === "binary" || request.bodyFileData
+    ? {
+        body_file_name: request.bodyFileName ?? "",
+        body_file_type: request.bodyFileType ?? "application/octet-stream",
+        body_file_data: request.bodyFileData ?? "",
+      }
+    : {}),
 });
 
 export class SupabaseRepository implements Repository {

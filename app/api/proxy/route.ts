@@ -10,7 +10,7 @@ export const maxDuration = 60;
 const MAX_RESPONSE_BYTES = 5_000_000;
 const MAX_REDIRECTS = 5;
 const METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']);
-const BODY_MODES = new Set(['none', 'json', 'raw', 'form']);
+const BODY_MODES = new Set(['none', 'binary', 'json', 'raw', 'form']);
 const AUTH_TYPES = new Set(['none', 'bearer', 'basic']);
 const BLOCKED_HEADERS = new Set([
   'connection', 'content-length', 'host', 'keep-alive', 'proxy-authenticate',
@@ -33,7 +33,10 @@ const parseRequest = (value: unknown): ApiRequest => {
     || !shortString(value.auth.type, 16) || !AUTH_TYPES.has(String(value.auth.type))
     || (value.auth.bearerToken !== undefined && !shortString(value.auth.bearerToken, 20_000))
     || (value.auth.basicUsername !== undefined && !shortString(value.auth.basicUsername, 2_000))
-    || (value.auth.basicPassword !== undefined && !shortString(value.auth.basicPassword, 20_000))) {
+    || (value.auth.basicPassword !== undefined && !shortString(value.auth.basicPassword, 20_000))
+    || (value.bodyFileName !== undefined && !shortString(value.bodyFileName, 512))
+    || (value.bodyFileType !== undefined && !shortString(value.bodyFileType, 256))
+    || (value.bodyFileData !== undefined && !shortString(value.bodyFileData, 8_000_000))) {
     throw new HttpError(400, 'The request contains invalid or oversized fields.');
   }
   return value as unknown as ApiRequest;
@@ -126,9 +129,14 @@ export async function POST(incoming: NextRequest) {
   if (!headers.has('accept')) headers.set('accept', '*/*');
   if (request.auth.type === 'bearer' && request.auth.bearerToken) headers.set('authorization', `Bearer ${request.auth.bearerToken}`);
   if (request.auth.type === 'basic') headers.set('authorization', `Basic ${Buffer.from(`${request.auth.basicUsername ?? ''}:${request.auth.basicPassword ?? ''}`).toString('base64')}`);
-  let body: string | undefined;
+  let body: BodyInit | undefined;
   if (!['GET', 'HEAD'].includes(request.method)) {
     if (request.bodyMode === 'json' || request.bodyMode === 'raw') body = request.bodyRaw;
+    if (request.bodyMode === 'binary' && request.bodyFileData) {
+      const encoded = request.bodyFileData.includes(',') ? request.bodyFileData.slice(request.bodyFileData.indexOf(',') + 1) : request.bodyFileData;
+      body = Buffer.from(encoded, 'base64') as unknown as BodyInit;
+      if (!headers.has('content-type')) headers.set('content-type', request.bodyFileType || 'application/octet-stream');
+    }
     if (request.bodyMode === 'form') body = new URLSearchParams(request.bodyForm.filter((f) => f.enabled && f.key).map((f) => [f.key, f.value])).toString();
     if (request.bodyMode === 'json' && !headers.has('content-type')) headers.set('content-type', 'application/json');
     if (request.bodyMode === 'raw' && !headers.has('content-type')) headers.set('content-type', 'text/plain');

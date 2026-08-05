@@ -103,9 +103,15 @@ create table if not exists postman_requests (
   body_mode text not null default 'none',
   body_raw text not null default '',
   body_form jsonb not null default '[]'::jsonb,
+  body_file_name text not null default '',
+  body_file_type text not null default 'application/octet-stream',
+  body_file_data text not null default '',
   auth jsonb not null default '{"type":"none"}'::jsonb,
   created_at timestamptz not null default now()
 );
+alter table postman_requests add column if not exists body_file_name text not null default '';
+alter table postman_requests add column if not exists body_file_type text not null default 'application/octet-stream';
+alter table postman_requests add column if not exists body_file_data text not null default '';
 alter table postman_requests add column if not exists documentation text not null default '';
 alter table postman_requests add column if not exists sort_order integer not null default 0;
 

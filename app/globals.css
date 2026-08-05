@@ -5160,6 +5160,41 @@ html[data-theme="dark"] .landing-final {
 .app-shell .theme-toggle {
   border: 1px solid var(--border) !important;
 }
+.tree-menu { position: relative; }
+.tree-menu .menu-pop { position: fixed; top: auto; right: auto; left: auto; margin: 0; z-index: 320; max-height: min(420px, calc(100dvh - 32px)); overflow-y: auto; }
+.modal-scrim { z-index: 500; }
+
+/* Theme-safe surfaces for legacy workbench components. */
+html[data-theme="light"] .people-modal,
+html[data-theme="light"] .people-modal > header,
+html[data-theme="light"] .invite-form > div,
+html[data-theme="light"] .menu-pop,
+html[data-theme="light"] .editor-body,
+html[data-theme="light"] .body-code-editor,
+html[data-theme="light"] .body-code-editor .body-input,
+html[data-theme="light"] .body-code-editor .body-highlight { color: var(--text); }
+html[data-theme="dark"] .people-modal,
+html[data-theme="dark"] .people-modal > header,
+html[data-theme="dark"] .invite-form > div,
+html[data-theme="dark"] .menu-pop,
+html[data-theme="dark"] .editor-body,
+html[data-theme="dark"] .body-code-editor,
+html[data-theme="dark"] .body-code-editor .body-input,
+html[data-theme="dark"] .body-code-editor .body-highlight { background: var(--surface); color: var(--text); }
+html[data-theme="dark"] .invite-form,
+html[data-theme="dark"] .body-code-editor .body-highlight { background: var(--surface-2); }
+html[data-theme="light"] .menu-pop,
+html[data-theme="light"] .people-modal,
+html[data-theme="light"] .people-modal > header,
+html[data-theme="light"] .app-dialog,
+html[data-theme="light"] .documentation-modal { background: var(--surface); color: var(--text); }
+html[data-theme="dark"] .menu-pop,
+html[data-theme="dark"] .people-modal,
+html[data-theme="dark"] .people-modal > header,
+html[data-theme="dark"] .app-dialog,
+html[data-theme="dark"] .documentation-modal { background: var(--surface); color: var(--text); }
+html[data-theme="light"] .menu-pop button,
+html[data-theme="dark"] .menu-pop button { color: var(--text); }
 
 /* Shared accessible dialogs replace browser prompts across the workbench. */
 .app-dialog-scrim { z-index: 400; padding: 20px; }
@@ -5547,3 +5582,8 @@ html[data-theme="dark"] .app-shell {
     touch-action: manipulation;
   }
 }
+.binary-body-picker { display: grid; gap: 12px; padding: 16px 0; }
+.binary-file-card { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-muted); }
+.binary-file-card strong, .binary-file-card small { display: block; }
+.binary-file-card small { margin-top: 4px; color: var(--muted); }
+.error-text { color: var(--danger, #ef4444); }

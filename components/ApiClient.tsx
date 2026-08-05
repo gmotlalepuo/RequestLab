@@ -2832,12 +2832,19 @@ function TreeMenu({
   label: string;
   children: React.ReactNode;
 }) {
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+  const [menuPosition, setMenuPosition] = useState<React.CSSProperties>({});
+  const positionMenu = () => {
+    const rect = detailsRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setMenuPosition({ top: Math.min(window.innerHeight - 12, rect.bottom + 4), left: Math.max(8, rect.right - 158) });
+  };
   return (
-    <details className="menu tree-menu" onPointerDown={(event) => event.stopPropagation()} onDragStart={(event) => event.stopPropagation()}>
-      <summary aria-label={label} onClick={(event) => event.stopPropagation()}>
+    <details ref={detailsRef} className="menu tree-menu" onPointerDown={(event) => event.stopPropagation()} onDragStart={(event) => event.stopPropagation()}>
+      <summary aria-label={label} onClick={(event) => { event.stopPropagation(); positionMenu(); }}>
         <MoreHorizontal size={15} />
       </summary>
-      <div className="menu-pop">
+      <div className="menu-pop" style={menuPosition}>
         <div className="menu-pop-header">
           <span>Actions</span>
           <button
@@ -2970,9 +2977,32 @@ function BodyEditor({
   request: ApiRequest;
   setRequest: (request: ApiRequest) => void;
 }) {
-  const modes: BodyMode[] = ["none", "json", "raw", "form"];
+  const modes: BodyMode[] = ["none", "binary", "json", "raw", "form"];
   const [bodyHeight, setBodyHeight] = useState(240);
   const highlightRef = useRef<HTMLPreElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [fileError, setFileError] = useState("");
+  const chooseBinaryFile = async (file: File) => {
+    setFileError("");
+    const maxBytes = 5 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      setFileError("Files must be 5 MB or smaller.");
+      return;
+    }
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result ?? ""));
+      reader.onerror = () => reject(new Error("Could not read this file."));
+      reader.readAsDataURL(file);
+    });
+    setRequest({
+      ...request,
+      bodyMode: "binary",
+      bodyFileName: file.name,
+      bodyFileType: file.type || "application/octet-stream",
+      bodyFileData: dataUrl,
+    });
+  };
   const resizeBody = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
     const target = event.currentTarget;
@@ -3007,6 +3037,48 @@ function BodyEditor({
       </div>
       {request.bodyMode === "none" && (
         <p className="muted">This request has no body.</p>
+      )}
+      {request.bodyMode === "binary" && (
+        <div className="binary-body-picker">
+          <input
+            ref={fileInputRef}
+            type="file"
+            hidden
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void chooseBinaryFile(file);
+              event.currentTarget.value = "";
+            }}
+          />
+          {request.bodyFileName ? (
+            <div className="binary-file-card">
+              <div>
+                <strong>{request.bodyFileName}</strong>
+                <small>{request.bodyFileType || "application/octet-stream"}</small>
+              </div>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() =>
+                  setRequest({
+                    ...request,
+                    bodyFileName: "",
+                    bodyFileType: "application/octet-stream",
+                    bodyFileData: "",
+                  })
+                }
+              >
+                Remove
+              </button>
+            </div>
+          ) : (
+            <button type="button" className="secondary" onClick={() => fileInputRef.current?.click()}>
+              Choose a file from this device
+            </button>
+          )}
+          <p className="muted">The selected file is sent as the raw request body.</p>
+          {fileError && <p className="error-text">{fileError}</p>}
+        </div>
       )}
       {["json", "raw"].includes(request.bodyMode) && (
         <div className="body-code-editor" style={{ height: bodyHeight }}>
