@@ -3,6 +3,9 @@ export type KeyValue = {
   key: string;
   value: string;
   enabled: boolean;
+  fileData?: string;
+  fileName?: string;
+  fileType?: string;
 };
 
 export type HttpMethod =

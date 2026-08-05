@@ -22,7 +22,10 @@ const object = (value: unknown): value is Record<string, unknown> => Boolean(val
 const shortString = (value: unknown, max: number) => typeof value === 'string' && value.length <= max;
 
 const validateRows = (value: unknown, maxRows: number) => Array.isArray(value) && value.length <= maxRows && value.every((row) =>
-  object(row) && shortString(row.id, 100) && shortString(row.key, 2_000) && shortString(row.value, 20_000) && typeof row.enabled === 'boolean');
+  object(row) && shortString(row.id, 100) && shortString(row.key, 2_000) && shortString(row.value, 20_000) && typeof row.enabled === 'boolean'
+  && (row.fileData === undefined || shortString(row.fileData, 8_000_000))
+  && (row.fileName === undefined || shortString(row.fileName, 512))
+  && (row.fileType === undefined || shortString(row.fileType, 256)));
 
 const parseRequest = (value: unknown): ApiRequest => {
   if (!object(value) || !shortString(value.url, 8_192) || !shortString(value.method, 12)
@@ -137,7 +140,20 @@ export async function POST(incoming: NextRequest) {
       body = Buffer.from(encoded, 'base64') as unknown as BodyInit;
       if (!headers.has('content-type')) headers.set('content-type', request.bodyFileType || 'application/octet-stream');
     }
-    if (request.bodyMode === 'form') body = new URLSearchParams(request.bodyForm.filter((f) => f.enabled && f.key).map((f) => [f.key, f.value])).toString();
+    if (request.bodyMode === 'form') {
+      const fields = request.bodyForm.filter((f) => f.enabled && f.key);
+      const hasFile = fields.some((field) => field.fileData);
+      if (hasFile) {
+        const form = new FormData();
+        fields.forEach((field) => {
+          if (field.fileData) {
+            const encoded = field.fileData.includes(',') ? field.fileData.slice(field.fileData.indexOf(',') + 1) : field.fileData;
+            form.append(field.key, new Blob([Buffer.from(encoded, 'base64')], { type: field.fileType || 'application/octet-stream' }), field.fileName || field.value || 'upload');
+          } else form.append(field.key, field.value);
+        });
+        body = form;
+      } else body = new URLSearchParams(fields.map((f) => [f.key, f.value])).toString();
+    }
     if (request.bodyMode === 'json' && !headers.has('content-type')) headers.set('content-type', 'application/json');
     if (request.bodyMode === 'raw' && !headers.has('content-type')) headers.set('content-type', 'text/plain');
     if (request.bodyMode === 'form' && !headers.has('content-type')) headers.set('content-type', 'application/x-www-form-urlencoded');

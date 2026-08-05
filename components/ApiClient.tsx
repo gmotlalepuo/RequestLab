@@ -254,10 +254,12 @@ function KeyValueEditor({
   value,
   onChange,
   keyLabel = "Key",
+  fileFields = false,
 }: {
   value: KeyValue[];
   onChange: (value: KeyValue[]) => void;
   keyLabel?: string;
+  fileFields?: boolean;
 }) {
   const patch = (id: string, update: Partial<KeyValue>) =>
     onChange(
@@ -281,12 +283,16 @@ function KeyValueEditor({
               value={item.key}
               onChange={(e) => patch(item.id, { key: e.target.value })}
             />
-            <input
-              aria-label="Value"
-              placeholder="Value"
-              value={item.value}
-              onChange={(e) => patch(item.id, { value: e.target.value })}
-            />
+            {fileFields && item.key.trim().toLowerCase() === "file" ? (
+              <FileValuePicker item={item} onChange={(update) => patch(item.id, update)} />
+            ) : (
+              <input
+                aria-label="Value"
+                placeholder="Value"
+                value={item.value}
+                onChange={(e) => patch(item.id, { value: e.target.value })}
+              />
+            )}
             <button
               className="icon-button compact"
               aria-label="Remove row"
@@ -313,6 +319,28 @@ function KeyValueEditor({
       {keyLabel === "Header" && <GeneratedHeaders />}
     </>
   );
+}
+
+function FileValuePicker({ item, onChange }: { item: KeyValue; onChange: (update: Partial<KeyValue>) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  return <>
+    <input ref={inputRef} type="file" hidden onChange={async (event) => {
+      const file = event.currentTarget.files?.[0];
+      event.currentTarget.value = "";
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) return;
+      const data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result ?? ""));
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      onChange({ value: file.name, fileName: file.name, fileType: file.type || "application/octet-stream", fileData: data });
+    }} />
+    <button type="button" className="file-value-picker" onClick={() => inputRef.current?.click()} aria-label="Choose file">
+      {item.fileName || item.value || "Choose file"}
+    </button>
+  </>;
 }
 
 function GeneratedHeaders() {
@@ -3156,6 +3184,7 @@ function BodyEditor({
           value={request.bodyForm}
           onChange={(bodyForm) => setRequest({ ...request, bodyForm })}
           keyLabel="Field"
+          fileFields
         />
       )}
     </>
