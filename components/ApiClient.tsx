@@ -22,6 +22,7 @@ import {
   FolderOpen,
   Library,
   LoaderCircle,
+  Maximize2,
   LogOut,
   Menu as MenuIcon,
   MoreHorizontal,
@@ -441,6 +442,7 @@ export default function ApiClient({
   const [responseTab, setResponseTab] = useState<"Body" | "Headers">("Body");
   const [response, setResponse] = useState<ApiResponse | null>(null);
   const [responseFormat, setResponseFormat] = useState<"JSON" | "XML" | "HTML" | "YAML" | "JavaScript" | "Markdown" | "Raw" | "Hex" | "Base64">("JSON");
+  const [responseFullscreen, setResponseFullscreen] = useState(false);
   const [responseHeight, setResponseHeight] = useState(360);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -458,6 +460,7 @@ export default function ApiClient({
   const [environmentsOpen, setEnvironmentsOpen] = useState(false);
   const [resourcePaneOpen, setResourcePaneOpen] = useState(true);
   const [agentOpen, setAgentOpen] = useState(true);
+  const [agentWidth, setAgentWidth] = useState(370);
   const [collectionsWidth, setCollectionsWidth] = useState(310);
   const [curlOpen, setCurlOpen] = useState(false);
   const [documentationTarget, setDocumentationTarget] = useState<Collection | FolderType | ApiRequest | null>(null);
@@ -488,6 +491,17 @@ export default function ApiClient({
     target.addEventListener("pointermove", onMove);
     target.addEventListener("pointerup", onEnd);
     target.addEventListener("pointercancel", onEnd);
+  };
+  const resizeAgent = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (window.innerWidth <= 900) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const startX = event.clientX;
+    const startWidth = agentWidth;
+    const target = event.currentTarget;
+    const onMove = (moveEvent: PointerEvent) => setAgentWidth(Math.min(620, Math.max(280, startWidth - (moveEvent.clientX - startX))));
+    const onEnd = () => { target.removeEventListener("pointermove", onMove); target.removeEventListener("pointerup", onEnd); target.removeEventListener("pointercancel", onEnd); };
+    target.addEventListener("pointermove", onMove); target.addEventListener("pointerup", onEnd); target.addEventListener("pointercancel", onEnd);
   };
   const resizeResponse = (event: React.PointerEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -604,6 +618,7 @@ export default function ApiClient({
   }, []);
 
   const chooseWorkspace = async (item: Workspace) => {
+    setBusyLabel("Opening workspace…");
     setWorkspace(item);
     setCollection(null);
     setRequest(null);
@@ -614,9 +629,10 @@ export default function ApiClient({
     setExpandedCollections(new Set());
     setExpandedFolders(new Set());
     setMobilePanel("collections");
-    await loadCollections(item.id);
+    try { await loadCollections(item.id); } finally { setBusyLabel(""); }
   };
   const chooseCollection = async (item: Collection) => {
+    setBusyLabel("Loading collection…");
     setCollection(item);
     setRequest(null);
     setFolderId(null);
@@ -627,7 +643,7 @@ export default function ApiClient({
     setMobilePanel((current) =>
       current === "collections" ? "collections" : null,
     );
-    await Promise.all([loadCollection(item.id), loadEnvironments(item.id)]);
+    try { await Promise.all([loadCollection(item.id), loadEnvironments(item.id)]); } finally { setBusyLabel(""); }
   };
   const toggleCollection = async (item: Collection) => {
     const isOpen = expandedCollections.has(item.id);
@@ -639,18 +655,21 @@ export default function ApiClient({
     });
     if (!isOpen && collection?.id !== item.id) await chooseCollection(item);
   };
-  const toggleFolder = (id: string) =>
+  const toggleFolder = (id: string) => {
     setExpandedFolders((current) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+  };
   const openRequest = (item: ApiRequest) => {
+    setBusyLabel("Opening endpoint…");
     setRequest(item);
     setResponse(null);
     setError("");
     setMobilePanel(null);
+    window.setTimeout(() => setBusyLabel(""), 220);
   };
   const createWorkspace = async () => {
     const name = await ask({ title: "New workspace", label: "Workspace name", placeholder: "e.g. Product API", confirmLabel: "Create workspace" });
@@ -901,10 +920,12 @@ export default function ApiClient({
       return;
     }
     setSending(true);
+    setBusyLabel("Sending request…");
     setError("");
     setResponse(null);
     try {
       await save();
+      setBusyLabel("Sending request…");
       const environment = environments.find(
         (item) => item.id === activeEnvironmentId,
       );
@@ -924,6 +945,7 @@ export default function ApiClient({
       setError((e as Error).message);
     } finally {
       setSending(false);
+      setBusyLabel("");
     }
   };
   const currentFolders = folders.filter(
@@ -1256,6 +1278,7 @@ export default function ApiClient({
         style={
           {
             "--collections-width": `${collectionsWidth}px`,
+            "--agent-width": `${agentWidth}px`,
           } as React.CSSProperties
         }
       >
@@ -1816,6 +1839,7 @@ export default function ApiClient({
                     >
                       <Copy size={14} /> <span>Copy response</span>
                     </button>
+                    <button className="secondary response-copy" aria-label="Open response full screen" title="Open response full screen" onClick={() => setResponseFullscreen(true)}><Maximize2 size={14} /> <span>Full screen</span></button>
                   </div>
                   <Tabs
                     labels={["Body", "Headers"]}
@@ -1866,8 +1890,18 @@ export default function ApiClient({
               text="Select a request to edit and send it."
             />
           )}
+          {response && responseFullscreen && (
+            <div className="response-fullscreen-scrim" role="dialog" aria-modal="true" aria-label="Full screen response">
+              <section className="response-fullscreen">
+                <header><strong>Response</strong><div><button className="secondary" onClick={async () => { await navigator.clipboard.writeText(response.body); notify("Response body copied"); }}><Copy size={14} /> Copy</button><button className="icon-button" aria-label="Close full screen response" onClick={() => setResponseFullscreen(false)}>×</button></div></header>
+                <div className="response-format-toolbar"><select aria-label="Response format" value={responseFormat} onChange={(event) => setResponseFormat(event.target.value as typeof responseFormat)}>{["JSON", "XML", "HTML", "YAML", "JavaScript", "Markdown", "Raw", "Hex", "Base64"].map((format) => <option key={format}>{format}</option>)}</select></div>
+                <pre className="json-viewer"><code>{responseFormat === "JSON" ? (jsonTokens(response.body, async (value) => { await navigator.clipboard.writeText(value); notify("Value copied"); }) ?? pretty(response.body)) : formatResponseBody(response.body, responseFormat) || "(empty body)"}</code></pre>
+              </section>
+            </div>
+          )}
         </section>
         <div id="requestlab-ai-agent">
+          {agentOpen && <div className="agent-resizer" role="separator" aria-label="Resize AI agent" aria-orientation="vertical" onPointerDown={resizeAgent} />}
           <AiAgentPanel
             open={agentOpen}
             onOpenChange={setAgentOpen}

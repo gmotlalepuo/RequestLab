@@ -218,6 +218,35 @@ export default function AiAgentPanel({
             confirmationState: "pending",
           });
         }
+        if (step.tool === "prepare_delete_record") {
+          const args = step.arguments;
+          if (!context.collectionId || !context.environmentId) {
+            await emit({ id: crypto.randomUUID(), role: "agent", text: "Choose the collection and environment before I prepare this deletion." });
+            return;
+          }
+          const nationalId = args.national_id ?? (plan.inputs as Record<string, unknown> | undefined)?.national_id;
+          if (typeof nationalId !== "string" || !nationalId.trim()) {
+            await emit({ id: crypto.randomUUID(), role: "agent", text: "I’m missing national_id, which is required to identify the record." });
+            return;
+          }
+          const prepared = toolData(await mcp("tools/call", {
+            name: "prepare_delete_record",
+            arguments: {
+              workspace_id: context.workspaceId,
+              collection_id: context.collectionId,
+              environment_id: context.environmentId,
+              national_id: nationalId,
+              target_environment: args.target_environment,
+            },
+          })) as unknown as Confirmation;
+          await emit({
+            id: crypto.randomUUID(),
+            role: "agent",
+            text: "The record deletion has been prepared. Review the exact environment, record, and endpoint before approving it.",
+            confirmation: prepared,
+            confirmationState: "pending",
+          });
+        }
       }
     } catch (error) {
       const failure: Message = { id: crypto.randomUUID(), role: "error", text: error instanceof Error ? error.message : "The agent could not complete the request." };
@@ -316,7 +345,7 @@ export default function AiAgentPanel({
         <label htmlFor="ai-agent-input">Describe what you need</label>
         <textarea id="ai-agent-input" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => {
           if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); }
-        }} placeholder="Issue a license for national_id…"
+        }} placeholder="Issue a license, or delete a record by national_id…"
           disabled={running} />
         <div><span>Enter to send · Shift+Enter for a new line</span><button type="submit" aria-label="Send to AI agent" disabled={running || !draft.trim()}><CornerDownLeft size={16} /></button></div>
       </form>

@@ -4737,17 +4737,27 @@ html[data-theme="dark"] .landing-final {
 
 /* MCP agent: a task-focused execution rail, not a decorative chat surface. */
 .workspace-grid.agent-open {
-  grid-template-columns: 196px var(--collections-width, 310px) minmax(480px, 1fr) minmax(320px, 370px);
+  grid-template-columns: 196px var(--collections-width, 310px) minmax(480px, 1fr) minmax(280px, var(--agent-width, 370px));
 }
 .workspace-grid.agent-closed {
   grid-template-columns: 196px var(--collections-width, 310px) minmax(480px, 1fr) 48px;
 }
 #requestlab-ai-agent {
+  position: relative;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
   background: #20242c;
 }
+.agent-resizer { position: absolute; top: 0; bottom: 0; left: -5px; z-index: 5; width: 10px; cursor: col-resize; touch-action: none; }
+.agent-resizer::after { content: ""; position: absolute; top: 14px; bottom: 14px; left: 4px; width: 2px; background: transparent; border-radius: 2px; }
+.agent-resizer:hover::after, .agent-resizer:active::after { background: var(--brand); }
+.response-fullscreen-scrim { position: fixed; inset: 0; z-index: 800; display: grid; padding: 24px; background: color-mix(in srgb, #07101f 70%, transparent); }
+.response-fullscreen { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto auto minmax(0, 1fr); overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); box-shadow: 0 24px 80px rgba(0,0,0,.28); }
+.response-fullscreen > header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.response-fullscreen > header > div { display: flex; align-items: center; gap: 8px; }
+.response-fullscreen .json-viewer { min-height: 0; overflow: auto; margin: 0; padding: 18px; background: var(--surface-2); }
+@media (max-width: 640px) { .response-fullscreen-scrim { padding: 10px; } .response-fullscreen { border-radius: 8px; } }
 .ai-agent {
   height: 100%;
   min-width: 0;
