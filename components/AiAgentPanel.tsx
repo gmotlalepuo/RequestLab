@@ -199,6 +199,10 @@ export default function AiAgentPanel({
         }
         if (step.tool === "prepare_issue_payment") {
           const args = step.arguments;
+          if (!context.collectionId || !context.environmentId || typeof args.national_id !== "string" || !String(args.national_id).trim() || typeof args.service !== "string" || !String(args.service).trim()) {
+            await emit({ id: crypto.randomUUID(), role: "agent", text: "Please provide national_id, service, and choose the target environment before I prepare the payment." });
+            return;
+          }
           const prepared = toolData(await mcp("tools/call", {
             name: "prepare_issue_payment",
             arguments: {
@@ -243,6 +247,48 @@ export default function AiAgentPanel({
             id: crypto.randomUUID(),
             role: "agent",
             text: "The record deletion has been prepared. Review the exact environment, record, and endpoint before approving it.",
+            confirmation: prepared,
+            confirmationState: "pending",
+          });
+        }
+        if (["prepare_update_status", "prepare_reissue_license", "prepare_issue_receipt"].includes(step.tool)) {
+          const args = step.arguments;
+          if (!context.collectionId || !context.environmentId) {
+            await emit({ id: crypto.randomUUID(), role: "agent", text: "Choose the collection and environment before I prepare this workflow." });
+            return;
+          }
+          const inputs = (plan.inputs as Record<string, unknown> | undefined) ?? {};
+          const nationalId = args.national_id ?? inputs.national_id;
+          if (typeof nationalId !== "string" || !nationalId.trim()) {
+            await emit({ id: crypto.randomUUID(), role: "agent", text: "Please provide the national_id before I continue." });
+            return;
+          }
+          const status = args.target_status ?? args.status ?? inputs.target_status ?? inputs.status;
+          if (step.tool === "prepare_update_status" && (typeof status !== "string" || !status.trim())) {
+            await emit({ id: crypto.randomUUID(), role: "agent", text: "Please provide the current and target status (for example, Status 1 to Status 2) before I continue." });
+            return;
+          }
+          const service = args.service ?? inputs.service;
+          if (step.tool === "prepare_issue_receipt" && (typeof service !== "string" || !service.trim())) {
+            await emit({ id: crypto.randomUUID(), role: "agent", text: "Please provide the service for the receipt before I continue." });
+            return;
+          }
+          const prepared = toolData(await mcp("tools/call", {
+            name: step.tool,
+            arguments: {
+              workspace_id: context.workspaceId,
+              collection_id: context.collectionId,
+              environment_id: context.environmentId,
+              national_id: nationalId,
+              ...(status ? { status, target_status: status } : {}),
+              ...(service ? { service } : {}),
+              ...(args.target_environment ? { target_environment: args.target_environment } : {}),
+            },
+          })) as unknown as Confirmation;
+          await emit({
+            id: crypto.randomUUID(),
+            role: "agent",
+            text: "The workflow has been prepared. Review the exact record, environment, service, status transition, and endpoint before approving it.",
             confirmation: prepared,
             confirmationState: "pending",
           });
