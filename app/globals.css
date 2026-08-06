@@ -5096,7 +5096,7 @@ html[data-theme="dark"] .landing-final {
 }
 @media (max-width: 1380px) {
   .workspace-grid.agent-open {
-    grid-template-columns: 176px var(--collections-width, 270px) minmax(420px, 1fr) 330px;
+    grid-template-columns: 176px var(--collections-width, 270px) minmax(420px, 1fr) minmax(280px, var(--agent-width, 330px));
   }
   .workspace-grid.agent-closed {
     grid-template-columns: 176px var(--collections-width, 270px) minmax(420px, 1fr) 48px;
@@ -5113,7 +5113,7 @@ html[data-theme="dark"] .landing-final {
     top: 56px;
     right: 0;
     bottom: 0;
-    width: 360px;
+    width: min(var(--agent-width, 360px), 92vw);
     box-shadow: -6px 0 8px rgba(10, 14, 20, .18);
   }
   .workspace-grid.agent-closed #requestlab-ai-agent {
