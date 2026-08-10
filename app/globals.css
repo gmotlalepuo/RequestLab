@@ -5624,6 +5624,16 @@ html[data-theme="dark"] .app-shell {
 .error-text { color: var(--danger, #ef4444); }
 .file-value-picker { width: 100%; min-height: 36px; padding: 8px 11px; overflow: hidden; border: 1px solid var(--border); border-radius: var(--control-radius, 7px); background: var(--surface); color: var(--text); text-align: left; text-overflow: ellipsis; white-space: nowrap; font: inherit; cursor: pointer; }
 .file-value-picker:hover { border-color: var(--border-strong, var(--brand)); background: var(--surface-2); }
+.workspace-search { position: relative; min-width: 180px; margin-left: auto; }
+.workspace-search > input { width: 220px; height: 32px; padding: 0 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface-2); color: var(--text); font: 12px inherit; }
+.workspace-search-results { position: absolute; top: calc(100% + 6px); right: 0; z-index: 350; width: min(360px, 80vw); max-height: 360px; overflow: auto; padding: 5px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); box-shadow: var(--shadow); }
+.workspace-search-results button { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; width: 100%; padding: 8px; border: 0; border-radius: 6px; background: transparent; color: var(--text); text-align: left; }
+.workspace-search-results button:hover { background: var(--surface-2); }
+.workspace-search-results button span { color: var(--success); font: 10px ui-monospace, monospace; }
+.workspace-search-results button strong { font-size: 12px; }
+.workspace-search-results button small { grid-column: 2; color: var(--muted); font-size: 10px; }
+.workspace-search-results > span { display: block; padding: 10px; color: var(--muted); font-size: 12px; }
+.folder-tree-row.drop-before::before, .folder-tree-row.drop-after::after { content: ""; position: absolute; right: 8px; left: 8px; height: 2px; background: var(--brand); pointer-events: none; }
 .response-body-viewer { min-height: 100%; }
 .response-format-toolbar { position: sticky; top: 0; z-index: 2; display: flex; padding: 8px 10px; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 94%, transparent); }
 .response-format-toolbar select { min-height: 30px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--text); font: 12px inherit; }

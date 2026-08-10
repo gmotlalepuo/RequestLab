@@ -207,7 +207,7 @@ const bytes = (n: number) =>
       ? `${(n / 1024).toFixed(1)} KB`
       : `${(n / 1048576).toFixed(1)} MB`;
 const starredFirst = (a: FolderType, b: FolderType) =>
-  Number(b.isStarred) - Number(a.isStarred) || a.name.localeCompare(b.name);
+  Number(b.isStarred) - Number(a.isStarred) || (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name);
 const shellQuote = (value: string) => `'${value.replace(/'/g, `'\\''`)}'`;
 const createCurl = (request: ApiRequest, variables: KeyValue[] = []) => {
   const values = new Map(
@@ -461,6 +461,8 @@ export default function ApiClient({
   const [resourcePaneOpen, setResourcePaneOpen] = useState(true);
   const [agentOpen, setAgentOpen] = useState(true);
   const [agentWidth, setAgentWidth] = useState(370);
+  const [workspaceSearch, setWorkspaceSearch] = useState("");
+  const [workspaceSearchResults, setWorkspaceSearchResults] = useState<Array<{ request: ApiRequest; collection: Collection }>>([]);
   const [collectionsWidth, setCollectionsWidth] = useState(310);
   const [curlOpen, setCurlOpen] = useState(false);
   const [documentationTarget, setDocumentationTarget] = useState<Collection | FolderType | ApiRequest | null>(null);
@@ -572,6 +574,15 @@ export default function ApiClient({
     },
     [repo],
   );
+  useEffect(() => {
+    const query = workspaceSearch.trim().toLowerCase();
+    if (!repo || !query || !collections.length) { setWorkspaceSearchResults([]); return; }
+    let cancelled = false;
+    void Promise.all(collections.map(async (item) => (await repo.listRequests(item.id)).map((request) => ({ request, collection: item })))).then((groups) => {
+      if (!cancelled) setWorkspaceSearchResults(groups.flat().filter(({ request }) => request.name.toLowerCase().includes(query)).slice(0, 30));
+    }).catch(() => { if (!cancelled) setWorkspaceSearchResults([]); });
+    return () => { cancelled = true; };
+  }, [workspaceSearch, collections, repo]);
   useEffect(() => {
     setInitialLoading(true);
     Promise.all([loadWorkspaces(), loadPendingInvites()])
@@ -1097,6 +1108,16 @@ export default function ApiClient({
     }).map((item) => orderById.has(item.id) ? { ...item, sortOrder: orderById.get(item.id) } : item));
     await Promise.all(updated.map((item) => repo.updateRequest(item)));
   };
+  const reorderFolder = async (dragged: FolderType, target: FolderType, position: "before" | "after" = "before") => {
+    if (!repo || dragged.id === target.id || dragged.parentFolderId !== target.parentFolderId || dragged.collectionId !== target.collectionId) return;
+    const siblings = folders.filter((item) => item.collectionId === target.collectionId && item.parentFolderId === target.parentFolderId).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name));
+    const next = [...siblings]; const from = next.findIndex((item) => item.id === dragged.id); if (from < 0) return;
+    const [moved] = next.splice(from, 1); const targetIndex = next.findIndex((item) => item.id === target.id); next.splice(Math.max(0, targetIndex + (position === "after" ? 1 : 0)), 0, moved);
+    const updated = next.map((item, index) => ({ ...item, sortOrder: index }));
+    const order = new Map(updated.map((item) => [item.id, item.sortOrder ?? 0]));
+    setFolders((all) => all.map((item) => order.has(item.id) ? { ...item, sortOrder: order.get(item.id) } : item));
+    await Promise.all(updated.map((item) => repo.updateFolder(item)));
+  };
   const importFile = async (file: File) => {
     if (!workspace || !repo) return;
     setError("");
@@ -1198,6 +1219,10 @@ export default function ApiClient({
               <span>{collection.name}</span>
             </>
           )}
+        </div>
+        <div className="workspace-search">
+          <input aria-label="Search workspace endpoints" placeholder="Search endpoints…" value={workspaceSearch} onChange={(event) => setWorkspaceSearch(event.target.value)} />
+          {workspaceSearch.trim() && <div className="workspace-search-results">{workspaceSearchResults.length ? workspaceSearchResults.map(({ request: found, collection: foundCollection }) => <button key={found.id} onClick={() => { setWorkspaceSearch(""); void chooseCollection(foundCollection).then(() => openRequest(found)); }}><span>{found.method}</span><strong>{found.name}</strong><small>{foundCollection.name}</small></button>) : <span>No matching endpoints</span>}</div>}
         </div>
         <div className="top-actions">
           {workspace && collection && (
@@ -1458,6 +1483,7 @@ export default function ApiClient({
                     canDelete={isAdmin || workspace?.ownerId === userId || item.createdBy === userId}
                     onEditDocumentation={setDocumentationTarget}
                     onReorderRequest={reorderRequest}
+                    onReorderFolder={reorderFolder}
                     activeCollection={collection}
                     expanded={expandedCollections.has(item.id)}
                     folders={collection?.id === item.id ? folders : []}
@@ -2502,6 +2528,7 @@ function CollectionTreeNode({
   onToggleFolderStar,
   onMoveRequest,
   onReorderRequest,
+  onReorderFolder,
   onPromptMoveRequest,
 }: {
   item: Collection;
@@ -2534,6 +2561,7 @@ function CollectionTreeNode({
   onToggleFolderStar: (folder: FolderType) => Promise<void>;
   onMoveRequest: (item: ApiRequest, folderId: string | null) => Promise<void>;
   onReorderRequest: (dragged: ApiRequest, target: ApiRequest, position: "before" | "after") => Promise<void>;
+  onReorderFolder: (dragged: FolderType, target: FolderType, position: "before" | "after") => Promise<void>;
   onPromptMoveRequest: (item: ApiRequest) => Promise<void>;
 }) {
   return (
@@ -2609,6 +2637,7 @@ function CollectionTreeNode({
                 onEditDocumentation={onEditDocumentation}
                 onPromptMoveRequest={onPromptMoveRequest}
                 onReorderRequest={onReorderRequest}
+                onReorderFolder={onReorderFolder}
               />
             ))}
           {requests
@@ -2658,6 +2687,7 @@ function FolderTreeNode({
   onPromptMoveRequest,
   onEditDocumentation,
   onReorderRequest,
+  onReorderFolder,
 }: {
   collection: Collection;
   folder: FolderType;
@@ -2686,8 +2716,10 @@ function FolderTreeNode({
   onPromptMoveRequest: (item: ApiRequest) => Promise<void>;
   onEditDocumentation: (target: Collection | FolderType) => void;
   onReorderRequest: (dragged: ApiRequest, target: ApiRequest, position: "before" | "after") => Promise<void>;
+  onReorderFolder: (dragged: FolderType, target: FolderType, position: "before" | "after") => Promise<void>;
 }) {
   const expanded = expandedFolders.has(folder.id);
+  const [dropPosition, setDropPosition] = useState<"before" | "after" | null>(null);
   const children = folders
     .filter((item) => item.parentFolderId === folder.id)
     .sort(starredFirst);
@@ -2695,19 +2727,13 @@ function FolderTreeNode({
   return (
     <div className="tree-group">
       <div
-        className="tree-row"
+        className={`tree-row folder-tree-row ${dropPosition ? `drop-${dropPosition}` : ""}`}
         style={{ "--tree-depth": depth } as React.CSSProperties}
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          const endpoint = requests.find(
-            (request) =>
-              request.id ===
-              event.dataTransfer.getData("text/requestlab-request"),
-          );
-          if (endpoint) onMoveRequest(endpoint, folder.id);
-        }}
+        draggable
+        onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/requestlab-folder-json", JSON.stringify(folder)); }}
+        onDragOver={(event) => { if (event.dataTransfer.types.includes("text/requestlab-folder-json")) { event.preventDefault(); const rect = event.currentTarget.getBoundingClientRect(); setDropPosition(event.clientY < rect.top + rect.height / 2 ? "before" : "after"); } else if (event.dataTransfer.types.includes("text/requestlab-request")) event.preventDefault(); }}
+        onDragLeave={() => setDropPosition(null)}
+        onDrop={(event) => { event.preventDefault(); event.stopPropagation(); const raw = event.dataTransfer.getData("text/requestlab-folder-json"); const endpointId = event.dataTransfer.getData("text/requestlab-request"); const position = dropPosition || "before"; setDropPosition(null); if (raw) { try { void onReorderFolder(JSON.parse(raw) as FolderType, folder, position); } catch { /* ignore malformed drag payload */ } } else { const endpoint = requests.find((item) => item.id === endpointId); if (endpoint) void onMoveRequest(endpoint, folder.id); } }}
       >
         <button
           className="tree-disclosure"
@@ -2780,6 +2806,7 @@ function FolderTreeNode({
               onPromptMoveRequest={onPromptMoveRequest}
               onEditDocumentation={onEditDocumentation}
               onReorderRequest={onReorderRequest}
+              onReorderFolder={onReorderFolder}
             />
           ))}
           {endpoints.map((endpoint) => (

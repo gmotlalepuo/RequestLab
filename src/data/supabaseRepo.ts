@@ -183,6 +183,7 @@ const toRequestRow = (request: ApiRequest): Omit<RequestRow, "created_at"> => ({
   body_raw: request.bodyRaw,
   body_form: request.bodyForm,
   auth: request.auth,
+  sort_order: request.sortOrder ?? 0,
   ...(request.bodyMode === "binary" || request.bodyFileData
     ? {
         body_file_name: request.bodyFileName ?? "",
@@ -412,6 +413,7 @@ export class SupabaseRepository implements Repository {
       name: folder.name,
       description: folder.description,
       is_starred: folder.isStarred,
+      sort_order: folder.sortOrder ?? 0,
     });
     this.throwIfError(error);
   }
@@ -424,6 +426,7 @@ export class SupabaseRepository implements Repository {
         description: folder.description,
         parent_folder_id: folder.parentFolderId,
         is_starred: folder.isStarred,
+        sort_order: folder.sortOrder ?? 0,
       })
       .eq("id", folder.id);
     this.throwIfError(error);

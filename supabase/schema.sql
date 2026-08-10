@@ -83,9 +83,11 @@ create table if not exists postman_folders (
   description text not null default '',
   is_starred boolean not null default false,
   sort_order integer not null default 0,
+  sort_order integer not null default 0,
   created_at timestamptz not null default now()
 );
 alter table postman_folders add column if not exists is_starred boolean not null default false;
+alter table postman_folders add column if not exists sort_order integer not null default 0;
 alter table postman_folders add column if not exists description text not null default '';
 alter table postman_folders add column if not exists sort_order integer not null default 0;
 
@@ -107,8 +109,10 @@ create table if not exists postman_requests (
   body_file_type text not null default 'application/octet-stream',
   body_file_data text not null default '',
   auth jsonb not null default '{"type":"none"}'::jsonb,
+  sort_order integer not null default 0,
   created_at timestamptz not null default now()
 );
+alter table postman_requests add column if not exists sort_order integer not null default 0;
 alter table postman_requests add column if not exists body_file_name text not null default '';
 alter table postman_requests add column if not exists body_file_type text not null default 'application/octet-stream';
 alter table postman_requests add column if not exists body_file_data text not null default '';
