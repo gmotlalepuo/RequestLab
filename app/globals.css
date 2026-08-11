@@ -768,6 +768,37 @@ textarea {
   padding-inline: 10px;
   white-space: nowrap;
 }
+.response-actions { position: relative; display: inline-flex; }
+.response-menu-trigger { min-width: 30px; padding-inline: 7px; }
+.response-actions-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 40;
+  display: grid;
+  min-width: 190px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 12px 28px rgba(0,0,0,.2);
+}
+.response-actions-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.response-actions-menu button:hover { background: var(--surface-2); }
 .response-content {
   min-height: 0;
   flex: 1;

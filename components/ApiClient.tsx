@@ -48,6 +48,7 @@ import {
 } from "@/src/lib/postman";
 import { newId } from "@/src/lib/id";
 import { syncUrlQueryParams } from "@/src/lib/request-url";
+import { importCurlCommands } from "@/src/lib/curl";
 import type {
   ApiRequest,
   ApiResponse,
@@ -466,6 +467,7 @@ export default function ApiClient({
   const [response, setResponse] = useState<ApiResponse | null>(null);
   const [responseFormat, setResponseFormat] = useState<"JSON" | "XML" | "HTML" | "YAML" | "JavaScript" | "Markdown" | "Raw" | "Hex" | "Base64">("JSON");
   const [responseFullscreen, setResponseFullscreen] = useState(false);
+  const [responseActionsOpen, setResponseActionsOpen] = useState(false);
   const [responseHeight, setResponseHeight] = useState(360);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -488,6 +490,9 @@ export default function ApiClient({
   const [workspaceSearchResults, setWorkspaceSearchResults] = useState<Array<{ request: ApiRequest; collection: Collection }>>([]);
   const [collectionsWidth, setCollectionsWidth] = useState(310);
   const [curlOpen, setCurlOpen] = useState(false);
+  const [curlImportOpen, setCurlImportOpen] = useState(false);
+  const [curlImportText, setCurlImportText] = useState("");
+  const [curlImportFolderId, setCurlImportFolderId] = useState<string | null>(null);
   const [documentationTarget, setDocumentationTarget] = useState<Collection | FolderType | ApiRequest | null>(null);
   const [workspacesOpen, setWorkspacesOpen] = useState(true);
   const [collectionsOpen, setCollectionsOpen] = useState(true);
@@ -497,6 +502,28 @@ export default function ApiClient({
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
     new Set(),
   );
+  const downloadResponse = () => {
+    if (!response) return;
+    const content = responseFormat === "JSON"
+      ? pretty(response.body)
+      : formatResponseBody(response.body, responseFormat) || response.body;
+    const extension = ({ JSON: "json", XML: "xml", HTML: "html", YAML: "yaml", JavaScript: "js", Markdown: "md", Raw: "txt", Hex: "txt", Base64: "txt" } as Record<string, string>)[responseFormat] ?? "txt";
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${(request?.name || "response").replace(/[^a-z0-9-_]+/gi, "-").replace(/^-|-$/g, "") || "response"}.${extension}`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setResponseActionsOpen(false);
+    notify("Response saved to file");
+  };
+  const clearResponse = () => {
+    setResponse(null);
+    setResponseFullscreen(false);
+    setResponseActionsOpen(false);
+    notify("Response cleared");
+  };
   useEffect(() => { setRequestHistory([]); }, [userId]);
   const fileRef = useRef<HTMLInputElement>(null);
   const resizeCollections = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -1186,6 +1213,26 @@ export default function ApiClient({
     }
   };
 
+  const importCurl = async () => {
+    if (!repo || !collection) return;
+    setError("");
+    try {
+      const imported = importCurlCommands(curlImportText, collection.id, curlImportFolderId);
+      if (!imported.length) throw new Error("Paste at least one cURL command.");
+      setBusyLabel(`Importing ${imported.length} endpoint${imported.length === 1 ? "" : "s"}…`);
+      for (const endpoint of imported) await repo.createRequest(endpoint);
+      await loadCollection(collection.id);
+      if (curlImportFolderId) setExpandedFolders((current) => new Set(current).add(curlImportFolderId));
+      setCurlImportOpen(false);
+      setCurlImportText("");
+      notify(`Imported ${imported.length} endpoint${imported.length === 1 ? "" : "s"}`);
+    } catch (cause) {
+      setError(`cURL import failed: ${(cause as Error).message}`);
+    } finally {
+      setBusyLabel("");
+    }
+  };
+
   if (!configured)
     return (
       <main className="setup">
@@ -1553,6 +1600,11 @@ export default function ApiClient({
               >
                 <Upload size={15} /> Import Postman JSON
               </button>
+              {collection && (
+                <button className="text-button" onClick={() => { setCurlImportFolderId(folderId); setCurlImportOpen(true); }}>
+                  <Code2 size={15} /> Import cURL
+                </button>
+              )}
               <input
                 ref={fileRef}
                 hidden
@@ -1898,6 +1950,15 @@ export default function ApiClient({
                       <Copy size={14} /> <span>Copy response</span>
                     </button>
                     <button className="secondary response-copy" aria-label="Open response full screen" title="Open response full screen" onClick={() => setResponseFullscreen(true)}><Maximize2 size={14} /> <span>Full screen</span></button>
+                    <div className="response-actions">
+                      <button className="secondary response-menu-trigger" aria-label="Response actions" aria-expanded={responseActionsOpen} title="Response actions" onClick={() => setResponseActionsOpen((open) => !open)}><MoreHorizontal size={16} /></button>
+                      {responseActionsOpen && (
+                        <div className="response-actions-menu" role="menu">
+                          <button role="menuitem" onClick={downloadResponse}><Download size={14} /> Save response to file</button>
+                          <button role="menuitem" onClick={clearResponse}><X size={14} /> Clear response</button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <Tabs
                     labels={["Body", "Headers"]}
@@ -2024,6 +2085,24 @@ export default function ApiClient({
           onClose={() => setCurlOpen(false)}
           onCopied={() => notify("cURL copied")}
         />
+      )}
+      {curlImportOpen && collection && (
+        <div className="app-dialog-scrim" role="presentation" onMouseDown={() => setCurlImportOpen(false)}>
+          <section className="app-dialog curl-import-dialog" role="dialog" aria-modal="true" aria-labelledby="curl-import-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="app-dialog-header">
+              <div><p className="eyebrow">Import requests</p><h2 id="curl-import-title">Import cURL</h2></div>
+              <button className="icon-button" aria-label="Close" onClick={() => setCurlImportOpen(false)}><X size={17} /></button>
+            </div>
+            <p className="muted">Paste one command or multiple cURL commands. Each command becomes a separate editable endpoint.</p>
+            <label className="field-label" htmlFor="curl-import-folder">Destination folder</label>
+            <select id="curl-import-folder" value={curlImportFolderId ?? ""} onChange={(event) => setCurlImportFolderId(event.target.value || null)}>
+              <option value="">Collection root</option>
+              {folders.filter((item) => item.collectionId === collection.id).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            </select>
+            <textarea className="curl-import-input" value={curlImportText} onChange={(event) => setCurlImportText(event.target.value)} placeholder={'curl --location \'https://api.example.com/users\' \\\n  --header \'Accept: application/json\'\n\nPaste another curl command below…'} rows={12} autoFocus />
+            <div className="app-dialog-actions"><button className="secondary" onClick={() => setCurlImportOpen(false)}>Cancel</button><button className="primary" onClick={importCurl} disabled={!curlImportText.trim()}>Import cURL</button></div>
+          </section>
+        </div>
       )}
       {notice && (
         <div className="toast" role="status">
