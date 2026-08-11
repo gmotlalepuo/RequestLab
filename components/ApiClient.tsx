@@ -97,7 +97,20 @@ const emptyRequest = (
 });
 const pretty = (value: string) => {
   try {
-    let parsed: unknown = JSON.parse(value);
+    const source = value.trim();
+    let parsed: unknown;
+    try { parsed = JSON.parse(source); }
+    catch {
+      const start = Math.min(...[source.indexOf("{"), source.indexOf("[")].filter((index) => index >= 0));
+      const end = Math.max(source.lastIndexOf("}"), source.lastIndexOf("]"));
+      if (start < 0 || end <= start) throw new Error("Not JSON");
+      let candidate = source.slice(start, end + 1);
+      try { parsed = JSON.parse(candidate); }
+      catch {
+        candidate = candidate.replace(/([{,]\s*)([A-Za-z_$][\w$-]*)\s*:/g, '$1"$2":').replace(/'([^']*)'/g, '"$1"');
+        parsed = JSON.parse(candidate);
+      }
+    }
     for (let depth = 0; depth < 2 && typeof parsed === "string"; depth += 1) {
       const trimmed = parsed.trim();
       if (!(trimmed.startsWith("{") || trimmed.startsWith("["))) break;
@@ -113,11 +126,12 @@ const jsonTokens = (value: string, onCopy?: (value: string) => void) => {
     const formatted = pretty(value);
     const pattern =
       /("(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"\s*:?)|\b(true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g;
-    const result: React.ReactNode[] = [];
-    let cursor = 0;
-    for (const match of formatted.matchAll(pattern)) {
-      const index = match.index ?? 0;
-      if (index > cursor) result.push(formatted.slice(cursor, index));
+    const renderLine = (line: string, lineIndex: number) => {
+      const result: React.ReactNode[] = [];
+      let cursor = 0;
+      for (const match of line.matchAll(pattern)) {
+        const index = match.index ?? 0;
+        if (index > cursor) result.push(line.slice(cursor, index));
       const token = match[0];
       const type = token.trimEnd().endsWith(":")
         ? "key"
@@ -135,10 +149,12 @@ const jsonTokens = (value: string, onCopy?: (value: string) => void) => {
         try { copied = JSON.parse(token); } catch { copied = token; }
         onCopy(String(copied));
       }} key={`${index}-${token}`}>{rendered}</button> : <span className={`json-${type}`} key={`${index}-${token}`}>{token}</span>);
-      cursor = index + token.length;
-    }
-    if (cursor < formatted.length) result.push(formatted.slice(cursor));
-    return result;
+        cursor = index + token.length;
+      }
+      if (cursor < line.length) result.push(line.slice(cursor));
+      return <span className="json-line" data-line={lineIndex + 1} key={`line-${lineIndex}`}>{result}{"\n"}</span>;
+    };
+    return formatted.split("\n").map(renderLine);
   } catch {
     return null;
   }
@@ -1898,7 +1914,7 @@ export default function ApiClient({
                         </div>
                         <pre className="json-viewer">
                         <code>
-                          {responseFormat === "JSON" ? (jsonTokens(response.body, async (value) => {
+                          {responseFormat === "JSON" ? (jsonTokens(pretty(response.body), async (value) => {
                             try { await navigator.clipboard.writeText(value); notify("Value copied"); }
                             catch { setError("Could not copy this value. Check browser clipboard permission."); }
                           }) ?? pretty(response.body)) : formatResponseBody(response.body, responseFormat) ||
@@ -1937,7 +1953,7 @@ export default function ApiClient({
               <section className="response-fullscreen">
                 <header><strong>Response</strong><div><button className="secondary" onClick={async () => { await navigator.clipboard.writeText(response.body); notify("Response body copied"); }}><Copy size={14} /> Copy</button><button className="icon-button" aria-label="Close full screen response" onClick={() => setResponseFullscreen(false)}>×</button></div></header>
                 <div className="response-format-toolbar"><select aria-label="Response format" value={responseFormat} onChange={(event) => setResponseFormat(event.target.value as typeof responseFormat)}>{["JSON", "XML", "HTML", "YAML", "JavaScript", "Markdown", "Raw", "Hex", "Base64"].map((format) => <option key={format}>{format}</option>)}</select></div>
-                <pre className="json-viewer"><code>{responseFormat === "JSON" ? (jsonTokens(response.body, async (value) => { await navigator.clipboard.writeText(value); notify("Value copied"); }) ?? pretty(response.body)) : formatResponseBody(response.body, responseFormat) || "(empty body)"}</code></pre>
+                <pre className="json-viewer"><code>{responseFormat === "JSON" ? (jsonTokens(pretty(response.body), async (value) => { await navigator.clipboard.writeText(value); notify("Value copied"); }) ?? pretty(response.body)) : formatResponseBody(response.body, responseFormat) || "(empty body)"}</code></pre>
               </section>
             </div>
           )}

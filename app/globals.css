@@ -2110,6 +2110,9 @@ html[data-theme="dark"] .requestlab-logo.mark-only {
   font-size: 14px;
   line-height: 1.65;
 }
+.response-content pre code { display: block; white-space: pre !important; tab-size: 2; }
+.response-content .json-line { display: block; min-height: 1.65em; padding-left: 3.5em; position: relative; }
+.response-content .json-line::before { content: attr(data-line); position: absolute; left: 0; width: 2.5em; color: var(--muted); text-align: right; user-select: none; opacity: .8; }
 .setup-strip {
   max-width: 1132px;
   margin: 0 auto 100px;
