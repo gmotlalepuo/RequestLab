@@ -97,14 +97,20 @@ const emptyRequest = (
 });
 const pretty = (value: string) => {
   try {
-    return JSON.stringify(JSON.parse(value), null, 2);
+    let parsed: unknown = JSON.parse(value);
+    for (let depth = 0; depth < 2 && typeof parsed === "string"; depth += 1) {
+      const trimmed = parsed.trim();
+      if (!(trimmed.startsWith("{") || trimmed.startsWith("["))) break;
+      parsed = JSON.parse(trimmed);
+    }
+    return JSON.stringify(parsed, null, 2);
   } catch {
     return value;
   }
 };
 const jsonTokens = (value: string, onCopy?: (value: string) => void) => {
   try {
-    const formatted = JSON.stringify(JSON.parse(value), null, 2);
+    const formatted = pretty(value);
     const pattern =
       /("(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"\s*:?)|\b(true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g;
     const result: React.ReactNode[] = [];
