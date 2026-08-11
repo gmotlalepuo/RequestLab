@@ -436,6 +436,7 @@ export default function ApiClient({
   const [collection, setCollection] = useState<Collection | null>(null);
   const [folderId, setFolderId] = useState<string | null>(null);
   const [request, setRequest] = useState<ApiRequest | null>(null);
+  const [requestHistory, setRequestHistory] = useState<ApiRequest[]>([]);
   const [requestTab, setRequestTab] = useState<
     "Docs" | "Params" | "Headers" | "Body" | "Auth"
   >("Params");
@@ -474,6 +475,7 @@ export default function ApiClient({
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
     new Set(),
   );
+  useEffect(() => { setRequestHistory([]); }, [userId]);
   const fileRef = useRef<HTMLInputElement>(null);
   const resizeCollections = (event: React.PointerEvent<HTMLDivElement>) => {
     if (window.innerWidth <= 900) return;
@@ -677,6 +679,7 @@ export default function ApiClient({
   const openRequest = (item: ApiRequest) => {
     setBusyLabel("Opening endpoint…");
     setRequest(item);
+    setRequestHistory((items) => [item, ...items.filter((entry) => entry.id !== item.id)].slice(0, 12));
     setResponse(null);
     setError("");
     setMobilePanel(null);
@@ -1272,6 +1275,7 @@ export default function ApiClient({
           <button
             className="logout"
             onClick={async () => {
+              setRequestHistory([]);
               await createClient().auth.signOut();
               window.location.assign("/");
             }}
@@ -1693,6 +1697,12 @@ export default function ApiClient({
         <section className={`editor ${request ? "open" : ""}`}>
           {request ? (
             <>
+              {requestHistory.length > 0 && <div className="request-history-tabs" role="tablist" aria-label="Recently opened endpoints">
+                {requestHistory.map((item) => <div className={`request-history-tab ${item.id === request.id ? "active" : ""}`} role="tab" aria-selected={item.id === request.id} key={item.id}>
+                  <button onClick={() => openRequest(item)} title={item.url}><span className={`tree-method ${item.method.toLowerCase()}`}>{item.method}</span>{item.name}</button>
+                  <button className="request-history-close" aria-label={`Close ${item.name}`} onClick={() => { setRequestHistory((items) => items.filter((entry) => entry.id !== item.id)); if (item.id === request.id) setRequest(null); }}>×</button>
+                </div>)}
+              </div>}
               <div className="editor-head">
                 <div className="request-heading">
                   <div className="request-breadcrumbs" aria-label="Request location">
