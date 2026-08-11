@@ -773,6 +773,7 @@ export default function ApiClient({
         createdAt: new Date().toISOString(),
       };
       await repo.createCollection(item);
+      await createDefaultCollectionEnvironments(item);
       await loadCollections(workspace.id);
       await chooseCollection(item);
       notify(`Collection “${item.name}” created`);
@@ -781,6 +782,14 @@ export default function ApiClient({
     } finally {
       setBusyLabel("");
     }
+  };
+  const createDefaultCollectionEnvironments = async (target: Collection) => {
+    if (!repo) return;
+    const now = new Date().toISOString();
+    await Promise.all([
+      repo.createEnvironment({ id: newId(), workspaceId: target.workspaceId, collectionId: target.id, name: "User Acceptance Testing", variables: [], createdAt: now }),
+      repo.createEnvironment({ id: newId(), workspaceId: target.workspaceId, collectionId: target.id, name: "Production", variables: [], createdAt: now }),
+    ]);
   };
   const createFolderAt = async (
     targetCollection: Collection,
@@ -1188,7 +1197,7 @@ export default function ApiClient({
     let createdCollectionId: string | null = null;
     try {
       const imported = importPostmanCollection(await file.text(), workspace.id);
-      const total = 1 + imported.folders.length + imported.requests.length;
+      const total = 3 + imported.folders.length + imported.requests.length;
       let completed = 0;
       const advance = (label: string) => {
         completed += 1;
@@ -1198,6 +1207,9 @@ export default function ApiClient({
       imported.collection.createdBy = userId;
       await repo.createCollection(imported.collection);
       createdCollectionId = imported.collection.id;
+      advance("Creating collection…");
+      await createDefaultCollectionEnvironments(imported.collection);
+      advance("Creating default environments…");
       advance(`Importing folders… ${completed}/${total}`);
       for (const folder of imported.folders) {
         await repo.createFolder(folder);
