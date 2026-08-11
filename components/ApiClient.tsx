@@ -899,26 +899,30 @@ export default function ApiClient({
     if (!repo) return;
     const name = await ask({ title: `Rename ${kind}`, label: "Name", initialValue: item.name, confirmLabel: "Rename" });
     if (!name?.trim()) return;
-    if (kind === "workspace") {
-      await repo.updateWorkspace({ ...(item as Workspace), name });
-      await loadWorkspaces();
-      setWorkspace({ ...(item as Workspace), name });
-    }
-    if (kind === "collection") {
-      await repo.updateCollection({ ...(item as Collection), name });
-      await loadCollections((item as Collection).workspaceId);
-      setCollection({ ...(item as Collection), name });
-    }
-    if (kind === "folder") {
-      await repo.updateFolder({ ...(item as FolderType), name });
-      await loadCollection((item as FolderType).collectionId);
-    }
-    if (kind === "request") {
-      await repo.updateRequest({ ...(item as ApiRequest), name });
-      await loadCollection((item as ApiRequest).collectionId);
-      setRequest((current) =>
-        current?.id === item.id ? { ...current, name } : current,
-      );
+    setError("");
+    try {
+      if (kind === "workspace") {
+        await repo.updateWorkspace({ ...(item as Workspace), name });
+        await loadWorkspaces();
+        setWorkspace({ ...(item as Workspace), name });
+      }
+      if (kind === "collection") {
+        await repo.updateCollection({ ...(item as Collection), name });
+        await loadCollections((item as Collection).workspaceId);
+        setCollection({ ...(item as Collection), name });
+      }
+      if (kind === "folder") {
+        await repo.updateFolder({ ...(item as FolderType), name });
+        await loadCollection((item as FolderType).collectionId);
+      }
+      if (kind === "request") {
+        await repo.updateRequest({ ...(item as ApiRequest), name });
+        await loadCollection((item as ApiRequest).collectionId);
+        setRequest((current) => current?.id === item.id ? { ...current, name } : current);
+      }
+      notify(`${kind[0].toUpperCase()}${kind.slice(1)} renamed`);
+    } catch (cause) {
+      setError(`Could not rename ${kind}: ${(cause as Error).message}`);
     }
   };
   const remove = async (
@@ -928,27 +932,33 @@ export default function ApiClient({
     if (!repo) return;
     const approved = await confirmDialog({ title: `Delete ${kind}?`, message: "This action cannot be undone.", confirmLabel: `Delete ${kind}`, destructive: true });
     if (!approved) return;
-    if (kind === "workspace") {
-      await repo.deleteWorkspace(id);
-      setWorkspace(null);
-      setCollection(null);
-      await loadWorkspaces();
-    }
-    if (kind === "collection") {
-      await repo.deleteCollection(id);
-      setCollection(null);
-      setRequest(null);
-      if (workspace) await loadCollections(workspace.id);
-    }
-    if (kind === "folder") {
-      await repo.deleteFolder(id);
-      if (folderId === id) setFolderId(null);
-      if (collection) await loadCollection(collection.id);
-    }
-    if (kind === "request") {
-      await repo.deleteRequest(id);
-      if (request?.id === id) setRequest(null);
-      if (collection) await loadCollection(collection.id);
+    setError("");
+    try {
+      if (kind === "workspace") {
+        await repo.deleteWorkspace(id);
+        setWorkspace(null);
+        setCollection(null);
+        await loadWorkspaces();
+      }
+      if (kind === "collection") {
+        await repo.deleteCollection(id);
+        setCollection(null);
+        setRequest(null);
+        if (workspace) await loadCollections(workspace.id);
+      }
+      if (kind === "folder") {
+        await repo.deleteFolder(id);
+        if (folderId === id) setFolderId(null);
+        if (collection) await loadCollection(collection.id);
+      }
+      if (kind === "request") {
+        await repo.deleteRequest(id);
+        if (request?.id === id) setRequest(null);
+        if (collection) await loadCollection(collection.id);
+      }
+      notify(`${kind[0].toUpperCase()}${kind.slice(1)} deleted`);
+    } catch (cause) {
+      setError(`Could not delete ${kind}: ${(cause as Error).message}`);
     }
   };
   const duplicate = async (item: ApiRequest) => {
@@ -3067,6 +3077,10 @@ function RequestTreeRow({
       style={{ "--tree-depth": depth } as React.CSSProperties}
       draggable
       onDragStart={(event) => {
+        if ((event.target as HTMLElement).closest("details")) {
+          event.preventDefault();
+          return;
+        }
         event.dataTransfer.effectAllowed = "move";
         event.dataTransfer.setData("text/requestlab-request", endpoint.id);
         event.dataTransfer.setData("text/requestlab-request-json", JSON.stringify(endpoint));
@@ -3136,7 +3150,9 @@ function TreeMenu({
       <summary aria-label={label} onClick={(event) => { event.preventDefault(); event.stopPropagation(); const details = detailsRef.current; if (details) details.open = !details.open; positionMenu(); }}>
         <MoreHorizontal size={15} />
       </summary>
-      <div className="menu-pop" style={menuPosition}>
+      <div className="menu-pop" style={menuPosition} onClick={(event) => {
+        if ((event.target as HTMLElement).closest("button")) detailsRef.current?.removeAttribute("open");
+      }}>
         <div className="menu-pop-header">
           <span>Actions</span>
           <button
