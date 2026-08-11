@@ -1232,6 +1232,39 @@ export default function ApiClient({
       setBusyLabel("");
     }
   };
+  const addApiKeyToCollection = async (target: Collection) => {
+    if (!repo) return;
+    const value = await ask({
+      title: `Add x-api-key to “${target.name}”`,
+      label: "x-api-key value",
+      placeholder: "Paste the API key",
+      confirmLabel: "Apply to endpoints",
+    });
+    if (value === null) return;
+    if (!value.trim()) {
+      setError("Enter an x-api-key value before applying it.");
+      return;
+    }
+    setBusyLabel(`Updating endpoints in ${target.name}…`);
+    setError("");
+    try {
+      const targetRequests = await repo.listRequests(target.id);
+      const updatedRequests = targetRequests.map((endpoint) => {
+        const existing = endpoint.headers.find((header) => header.key.trim().toLowerCase() === "x-api-key");
+        const headers = existing
+          ? endpoint.headers.map((header) => header.id === existing.id ? { ...header, key: "x-api-key", value: value.trim(), enabled: true } : header)
+          : [...endpoint.headers, { id: newId(), key: "x-api-key", value: value.trim(), enabled: true }];
+        return { ...endpoint, headers };
+      });
+      await Promise.all(updatedRequests.map((endpoint) => repo.updateRequest(endpoint)));
+      if (collection?.id === target.id) setRequests(updatedRequests);
+      notify(`x-api-key applied to ${targetRequests.length} endpoint${targetRequests.length === 1 ? "" : "s"}`);
+    } catch (cause) {
+      setError(`Could not update collection headers: ${(cause as Error).message}`);
+    } finally {
+      setBusyLabel("");
+    }
+  };
 
   if (!configured)
     return (
@@ -1574,6 +1607,7 @@ export default function ApiClient({
                     onAddFolder={createFolderAt}
                     onAddRequest={createRequestAt}
                     onExportCollection={exportCollectionItem}
+                    onAddCollectionHeader={addApiKeyToCollection}
                     onExportFolder={exportFolder}
                     onToggleFolderStar={toggleFolderStar}
                     onMoveRequest={moveRequest}
@@ -2635,6 +2669,7 @@ function CollectionTreeNode({
   onAddFolder,
   onAddRequest,
   onExportCollection,
+  onAddCollectionHeader,
   onExportFolder,
   onToggleFolderStar,
   onMoveRequest,
@@ -2668,6 +2703,7 @@ function CollectionTreeNode({
     folderId: string | null,
   ) => Promise<void>;
   onExportCollection: (collection: Collection) => Promise<void>;
+  onAddCollectionHeader: (collection: Collection) => Promise<void>;
   onExportFolder: (folder: FolderType) => void;
   onToggleFolderStar: (folder: FolderType) => Promise<void>;
   onMoveRequest: (item: ApiRequest, folderId: string | null) => Promise<void>;
@@ -2710,6 +2746,7 @@ function CollectionTreeNode({
           <button onClick={() => onExportCollection(item)}>
             Export collection
           </button>
+          <button onClick={() => onAddCollectionHeader(item)}>Add x-api-key to endpoints</button>
           <button onClick={() => onRename("collection", item)}>Rename</button>
           {canDelete && <button
             className="danger"
@@ -3095,8 +3132,8 @@ function TreeMenu({
     };
   }, []);
   return (
-    <details ref={detailsRef} className="menu tree-menu" onToggle={positionMenu} onPointerDown={(event) => event.stopPropagation()} onDragStart={(event) => event.stopPropagation()}>
-      <summary aria-label={label} onClick={(event) => { event.stopPropagation(); positionMenu(); }}>
+    <details ref={detailsRef} className="menu tree-menu" onToggle={positionMenu} onPointerDown={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} onDragStart={(event) => event.stopPropagation()}>
+      <summary aria-label={label} onClick={(event) => { event.preventDefault(); event.stopPropagation(); const details = detailsRef.current; if (details) details.open = !details.open; positionMenu(); }}>
         <MoreHorizontal size={15} />
       </summary>
       <div className="menu-pop" style={menuPosition}>

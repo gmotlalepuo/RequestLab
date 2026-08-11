@@ -5218,7 +5218,8 @@ html[data-theme="dark"] .landing-final {
 .app-shell .theme-toggle {
   border: 1px solid var(--border) !important;
 }
-.tree-menu { position: relative; }
+.tree-menu { position: relative; z-index: 6; pointer-events: auto; }
+.tree-menu summary { cursor: pointer; pointer-events: auto; }
 .tree-menu .menu-pop { position: fixed; top: auto; right: auto; left: auto; margin: 0; z-index: 320; max-height: min(420px, calc(100dvh - 32px)); overflow-y: auto; }
 .modal-scrim { z-index: 500; }
 
