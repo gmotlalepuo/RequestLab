@@ -1,6 +1,8 @@
 import { ApiRequest, ApiResponse } from '../types';
 
-const REQUEST_TIMEOUT_MS = 30000;
+// Keep mobile/native requests aligned with the web proxy. AI-backed APIs can
+// take more than 30 seconds while still being healthy.
+const REQUEST_TIMEOUT_MS = 180000;
 
 const encodeBase64 = (input: string): string => {
   if (typeof btoa === 'function') {

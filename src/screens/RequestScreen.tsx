@@ -123,7 +123,7 @@ export default function RequestScreen({ navigation, route }: Props) {
     } catch (error) {
       const message = (error as Error).message;
       setSendError(
-        message.includes('Abort') ? 'Request timed out after 30s.' : message,
+        message.includes('Abort') ? 'Request timed out after 180s.' : message,
       );
     } finally {
       setSending(false);

@@ -1,11 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+
 import { verifyMcpSignature } from "@/lib/mcp/internal-signature";
 import { assertSafeOutboundUrl, consumeRateLimit, HttpError, requestIdentity } from "@/lib/security/http";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 180;
 
 const MAX_BODY_BYTES = 250_000;
 const MAX_RESPONSE_BYTES = 1_000_000;
@@ -191,8 +192,12 @@ export async function POST(incoming: NextRequest) {
       if (resolved.bodyMode === "json" || resolved.bodyMode === "raw") body = resolved.bodyRaw;
       if (resolved.bodyMode === "form") body = new URLSearchParams(resolved.bodyForm.map((row) => [row.key, row.value])).toString();
     }
+    const configuredTimeout = Number(process.env.MCP_EXECUTION_TIMEOUT_MS ?? 180000);
+    const executionTimeoutMs = Number.isFinite(configuredTimeout)
+      ? Math.min(180000, Math.max(5000, configuredTimeout))
+      : 180000;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 30_000);
+    const timer = setTimeout(() => controller.abort(), executionTimeoutMs);
     const started = performance.now();
     try {
       const response = await fetch(safeUrl, { method: resolved.method, headers, body, redirect: "manual", signal: controller.signal });

@@ -1254,6 +1254,10 @@ export default function ApiClient({
       setBusyLabel("");
     }
   };
+  const openCurlImporter = (targetFolderId: string | null = folderId) => {
+    setCurlImportFolderId(targetFolderId);
+    setCurlImportOpen(true);
+  };
   const addApiKeyToCollection = async (target: Collection) => {
     if (!repo) return;
     const value = await ask({
@@ -1630,6 +1634,7 @@ export default function ApiClient({
                     onAddRequest={createRequestAt}
                     onExportCollection={exportCollectionItem}
                     onAddCollectionHeader={addApiKeyToCollection}
+                    onImportCurl={openCurlImporter}
                     onExportFolder={exportFolder}
                     onToggleFolderStar={toggleFolderStar}
                     onMoveRequest={moveRequest}
@@ -2692,6 +2697,7 @@ function CollectionTreeNode({
   onAddRequest,
   onExportCollection,
   onAddCollectionHeader,
+  onImportCurl,
   onExportFolder,
   onToggleFolderStar,
   onMoveRequest,
@@ -2726,6 +2732,7 @@ function CollectionTreeNode({
   ) => Promise<void>;
   onExportCollection: (collection: Collection) => Promise<void>;
   onAddCollectionHeader: (collection: Collection) => Promise<void>;
+  onImportCurl: (folderId: string | null) => void;
   onExportFolder: (folder: FolderType) => void;
   onToggleFolderStar: (folder: FolderType) => Promise<void>;
   onMoveRequest: (item: ApiRequest, folderId: string | null) => Promise<void>;
@@ -2769,6 +2776,7 @@ function CollectionTreeNode({
             Export collection
           </button>
           <button onClick={() => onAddCollectionHeader(item)}>Add x-api-key to endpoints</button>
+          <button onClick={() => onImportCurl(null)}>Import cURL here</button>
           <button onClick={() => onRename("collection", item)}>Rename</button>
           {canDelete && <button
             className="danger"
@@ -2806,6 +2814,7 @@ function CollectionTreeNode({
                 onMoveRequest={onMoveRequest}
                 onEditDocumentation={onEditDocumentation}
                 onPromptMoveRequest={onPromptMoveRequest}
+                onImportCurl={onImportCurl}
                 onReorderRequest={onReorderRequest}
                 onReorderFolder={onReorderFolder}
               />
@@ -2855,6 +2864,7 @@ function FolderTreeNode({
   onToggleFolderStar,
   onMoveRequest,
   onPromptMoveRequest,
+  onImportCurl,
   onEditDocumentation,
   onReorderRequest,
   onReorderFolder,
@@ -2884,6 +2894,7 @@ function FolderTreeNode({
   onToggleFolderStar: (folder: FolderType) => Promise<void>;
   onMoveRequest: (item: ApiRequest, folderId: string | null) => Promise<void>;
   onPromptMoveRequest: (item: ApiRequest) => Promise<void>;
+  onImportCurl: (folderId: string | null) => void;
   onEditDocumentation: (target: Collection | FolderType) => void;
   onReorderRequest: (dragged: ApiRequest, target: ApiRequest, position: "before" | "after") => Promise<void>;
   onReorderFolder: (dragged: FolderType, target: FolderType, position: "before" | "after") => Promise<void>;
@@ -2939,6 +2950,7 @@ function FolderTreeNode({
           <button onClick={() => onAddFolder(collection, folder.id)}>
             Add subfolder
           </button>
+          <button onClick={() => onImportCurl(folder.id)}>Import cURL here</button>
           <button onClick={() => onEditDocumentation(folder)}>Documentation</button>
           <button onClick={() => onExportFolder(folder)}>Export folder</button>
           <button onClick={() => onRename("folder", folder)}>Rename</button>
@@ -2974,6 +2986,7 @@ function FolderTreeNode({
               onToggleFolderStar={onToggleFolderStar}
               onMoveRequest={onMoveRequest}
               onPromptMoveRequest={onPromptMoveRequest}
+              onImportCurl={onImportCurl}
               onEditDocumentation={onEditDocumentation}
               onReorderRequest={onReorderRequest}
               onReorderFolder={onReorderFolder}

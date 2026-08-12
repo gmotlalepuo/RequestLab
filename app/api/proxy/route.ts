@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+
 import type { ApiRequest, ApiResponse } from '@/src/types';
 import { createClient } from '@/lib/supabase/server';
 import { assertSafeOutboundUrl, assertSameOrigin, consumeRateLimit, HttpError, readJson, requestIdentity } from '@/lib/security/http';
 import { syncUrlQueryParams } from '@/src/lib/request-url';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+// AI-backed upstreams may need more than the previous 60-second limit.
+export const maxDuration = 180;
 
 const MAX_RESPONSE_BYTES = 5_000_000;
 const MAX_REDIRECTS = 5;
@@ -161,8 +163,15 @@ export async function POST(incoming: NextRequest) {
     if (request.bodyMode === 'raw' && !headers.has('content-type')) headers.set('content-type', 'text/plain');
     if (request.bodyMode === 'form' && !headers.has('content-type') && !request.bodyForm.some((field) => field.fileData)) headers.set('content-type', 'application/x-www-form-urlencoded');
   }
+  // AI-backed endpoints (and some production APIs) can legitimately take
+  // longer than the old 30 second cutoff. Keep the timeout bounded and
+  // configurable so a slow upstream cannot leave a request hanging forever.
+  const configuredTimeout = Number(process.env.PROXY_TIMEOUT_MS ?? 180000);
+  const timeoutMs = Number.isFinite(configuredTimeout)
+    ? Math.min(180000, Math.max(5000, configuredTimeout))
+    : 180000;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const started = performance.now();
   try {
     const response = await fetchSafely(buildUrl(request), { method: request.method, headers, body, signal: controller.signal });
@@ -178,7 +187,7 @@ export async function POST(incoming: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof HttpError) return NextResponse.json({ error: error.message }, { status: error.status });
-    return NextResponse.json({ error: error instanceof Error && error.name === 'AbortError' ? 'Request timed out after 30 seconds.' : 'The upstream request could not be completed.' }, { status: 502 });
+    return NextResponse.json({ error: error instanceof Error && error.name === 'AbortError' ? `Request timed out after ${Math.round(timeoutMs / 1000)} seconds.` : 'The upstream request could not be completed.' }, { status: 502 });
   } finally { clearTimeout(timeout); }
   } catch (error) {
     const status = error instanceof HttpError ? error.status : 500;

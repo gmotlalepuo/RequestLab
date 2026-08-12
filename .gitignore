@@ -49,3 +49,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+.codex-work/
+_teacher_ai/
+_vps_mcp_work/
