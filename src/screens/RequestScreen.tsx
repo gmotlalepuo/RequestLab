@@ -22,6 +22,7 @@ import {
   HttpMethod,
 } from '../types';
 import { formatBytes, prettyBody, sendRequest } from '../lib/http';
+import { formatDurationMs } from '../lib/format-duration';
 import { colors, methodColors, spacing, statusColor } from '../theme';
 import KeyValueEditor from '../components/KeyValueEditor';
 
@@ -366,7 +367,7 @@ export default function RequestScreen({ navigation, route }: Props) {
               <Text style={[styles.responseStatus, { color: statusColor(response.status) }]}>
                 {response.status} {response.statusText}
               </Text>
-              <Text style={styles.responseMetaText}>{response.durationMs} ms</Text>
+              <Text style={styles.responseMetaText}>{formatDurationMs(response.durationMs)}</Text>
               <Text style={styles.responseMetaText}>
                 {formatBytes(response.sizeBytes)}
               </Text>

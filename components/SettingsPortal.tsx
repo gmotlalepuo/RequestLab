@@ -6,6 +6,7 @@ import { ArrowLeft, CheckCircle2, KeyRound, LoaderCircle, MessageSquareWarning, 
 import BrandLogo from "./BrandLogo";
 import ThemeToggle from "./ThemeToggle";
 import { createClient } from "@/lib/supabase/client";
+import { showGlobalToast } from "@/src/lib/global-toast";
 
 type Complaint = { id: string; subject: string; message: string; status: string; admin_response: string; created_at: string };
 
@@ -38,7 +39,7 @@ export default function SettingsPortal({ email, metadata, isAdmin }: { email: st
     void run("profile", async () => {
       const { error } = await createClient().auth.updateUser({ data: { full_name: profile.fullName, job_title: profile.jobTitle, company: profile.company } });
       if (error) throw error;
-      setNotice("Profile information updated.");
+      setNotice("Profile information updated."); showGlobalToast("Profile information updated.");
     });
   };
   const changePassword = (event: FormEvent) => {
@@ -47,7 +48,7 @@ export default function SettingsPortal({ email, metadata, isAdmin }: { email: st
       if (password.length < 12) throw new Error("Use at least 12 characters for your new password.");
       const { error } = await createClient().auth.updateUser({ password });
       if (error) throw error;
-      setPassword(""); setNotice("Password changed successfully.");
+      setPassword(""); setNotice("Password changed successfully."); showGlobalToast("Password changed successfully.");
     });
   };
   const submitComplaint = (event: FormEvent) => {
@@ -57,7 +58,7 @@ export default function SettingsPortal({ email, metadata, isAdmin }: { email: st
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
       setComplaint({ subject: "", message: "" });
-      setNotice("Your complaint was sent to the administrator.");
+      setNotice("Your complaint was sent to the administrator."); showGlobalToast("Your complaint was sent to the administrator.");
       await loadComplaints();
     });
   };

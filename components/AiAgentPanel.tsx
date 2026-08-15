@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Activity, AlertCircle, ArrowLeft, Bot, Check, CornerDownLeft, History, PanelRightClose, PanelRightOpen, Plus, ShieldCheck, Sparkles, Trash2, UserRound, X } from "lucide-react";
+import { formatDurationMs } from "@/src/lib/format-duration";
 
 type Context = {
   workspaceId: string | null;
@@ -360,7 +361,7 @@ export default function AiAgentPanel({
       {view !== "chat" && <div className="ai-agent-subhead"><button onClick={() => setView("chat")}><ArrowLeft size={14} />Chat</button><strong>{view === "history" ? "Chat history" : "Execution audit"}</strong></div>}
       <div className="ai-agent-log" ref={logRef} role="log" aria-live="polite">
         {view === "history" && <div className="ai-history">{conversations.length === 0 ? <p>No saved chats in this workspace.</p> : conversations.map((item) => <div key={item.id}><button onClick={() => void openConversation(item.id)}><strong>{item.title}</strong><small>{item.last_message_at ? new Date(item.last_message_at).toLocaleString() : "Empty chat"}</small></button><button onClick={() => void archiveConversation(item.id)} aria-label={`Archive ${item.title}`}><Trash2 size={14} /></button></div>)}</div>}
-        {view === "audit" && <div className="ai-audit">{audit.length === 0 ? <p>No executions in this workspace.</p> : audit.map((item) => <article key={item.id}><div><strong>{item.workflow_name || `${item.method} request`}</strong><span className={item.status}>{item.status}</span></div><small>{item.method} · {item.resolved_host}</small>{item.workflow_name === "issue_payment" && item.outcome_summary && <small>{String(item.outcome_summary.service || "Payment")} · {String(item.outcome_summary.environment || "Unknown environment")} · ID {String(item.outcome_summary.national_id || "—")}</small>}<small>{item.upstream_status || "—"} · {item.duration_ms ?? "—"} ms · {new Date(item.created_at).toLocaleString()}</small></article>)}</div>}
+        {view === "audit" && <div className="ai-audit">{audit.length === 0 ? <p>No executions in this workspace.</p> : audit.map((item) => <article key={item.id}><div><strong>{item.workflow_name || `${item.method} request`}</strong><span className={item.status}>{item.status}</span></div><small>{item.method} · {item.resolved_host}</small>{item.workflow_name === "issue_payment" && item.outcome_summary && <small>{String(item.outcome_summary.service || "Payment")} · {String(item.outcome_summary.environment || "Unknown environment")} · ID {String(item.outcome_summary.national_id || "—")}</small>}<small>{item.upstream_status || "—"} · {item.duration_ms == null ? "—" : formatDurationMs(item.duration_ms)} · {new Date(item.created_at).toLocaleString()}</small></article>)}</div>}
         {view === "chat" && messages.map((message) => (
           <article className={`ai-message ${message.role}`} key={message.id}>
             <span className="ai-message-icon">{message.role === "user" ? <UserRound size={15} /> : message.role === "error" ? <AlertCircle size={15} /> : <Bot size={15} />}</span>

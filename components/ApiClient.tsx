@@ -48,6 +48,8 @@ import {
 } from "@/src/lib/postman";
 import { newId } from "@/src/lib/id";
 import { syncUrlQueryParams } from "@/src/lib/request-url";
+import { formatDurationMs } from "@/src/lib/format-duration";
+import { showGlobalToast } from "@/src/lib/global-toast";
 import { importCurlCommands } from "@/src/lib/curl";
 import type {
   ApiRequest,
@@ -465,6 +467,10 @@ export default function ApiClient({
   >("Params");
   const [responseTab, setResponseTab] = useState<"Body" | "Headers">("Body");
   const [response, setResponse] = useState<ApiResponse | null>(null);
+  // Keep each open endpoint's latest response independent of the active tab.
+  // Responses live for the session and are removed when a tab is closed or
+  // the user logs out.
+  const [responsesByRequestId, setResponsesByRequestId] = useState<Record<string, ApiResponse>>({});
   const [responseFormat, setResponseFormat] = useState<"JSON" | "XML" | "HTML" | "YAML" | "JavaScript" | "Markdown" | "Raw" | "Hex" | "Base64">("JSON");
   const [responseFullscreen, setResponseFullscreen] = useState(false);
   const [responseActionsOpen, setResponseActionsOpen] = useState(false);
@@ -519,12 +525,23 @@ export default function ApiClient({
     notify("Response saved to file");
   };
   const clearResponse = () => {
+    if (request) {
+      setResponsesByRequestId((current) => {
+        const next = { ...current };
+        delete next[request.id];
+        return next;
+      });
+    }
     setResponse(null);
     setResponseFullscreen(false);
     setResponseActionsOpen(false);
     notify("Response cleared");
   };
-  useEffect(() => { setRequestHistory([]); }, [userId]);
+  useEffect(() => {
+    setRequestHistory([]);
+    setResponsesByRequestId({});
+    setResponse(null);
+  }, [userId]);
   const fileRef = useRef<HTMLInputElement>(null);
   const resizeCollections = (event: React.PointerEvent<HTMLDivElement>) => {
     if (window.innerWidth <= 900) return;
@@ -583,6 +600,7 @@ export default function ApiClient({
 
   const notify = (message: string) => {
     setNotice(message);
+    showGlobalToast(message);
     setTimeout(() => setNotice(""), 3500);
   };
   const loadWorkspaces = useCallback(async () => {
@@ -729,7 +747,7 @@ export default function ApiClient({
     setBusyLabel("Opening endpoint…");
     setRequest(item);
     setRequestHistory((items) => [item, ...items.filter((entry) => entry.id !== item.id)].slice(0, 12));
-    setResponse(null);
+    setResponse(responsesByRequestId[item.id] ?? null);
     setError("");
     setMobilePanel(null);
     window.setTimeout(() => setBusyLabel(""), 220);
@@ -1004,6 +1022,11 @@ export default function ApiClient({
     setSending(true);
     setBusyLabel("Sending request…");
     setError("");
+    setResponsesByRequestId((current) => {
+      const next = { ...current };
+      delete next[request.id];
+      return next;
+    });
     setResponse(null);
     try {
       await save();
@@ -1021,6 +1044,7 @@ export default function ApiClient({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Request failed");
+      setResponsesByRequestId((current) => ({ ...current, [request.id]: data }));
       setResponse(data);
       setResponseTab("Body");
     } catch (e) {
@@ -1404,6 +1428,8 @@ export default function ApiClient({
             className="logout"
             onClick={async () => {
               setRequestHistory([]);
+              setResponsesByRequestId({});
+              setResponse(null);
               await createClient().auth.signOut();
               window.location.assign("/");
             }}
@@ -1835,7 +1861,18 @@ export default function ApiClient({
               {requestHistory.length > 0 && <div className="request-history-tabs" role="tablist" aria-label="Recently opened endpoints">
                 {requestHistory.map((item) => <div className={`request-history-tab ${item.id === request.id ? "active" : ""}`} role="tab" aria-selected={item.id === request.id} key={item.id}>
                   <button onClick={() => openRequest(item)} title={item.url}><span className={`tree-method ${item.method.toLowerCase()}`}>{item.method}</span>{item.name}</button>
-                  <button className="request-history-close" aria-label={`Close ${item.name}`} onClick={() => { setRequestHistory((items) => items.filter((entry) => entry.id !== item.id)); if (item.id === request.id) setRequest(null); }}>×</button>
+                  <button className="request-history-close" aria-label={`Close ${item.name}`} onClick={() => {
+                    setRequestHistory((items) => items.filter((entry) => entry.id !== item.id));
+                    setResponsesByRequestId((current) => {
+                      const next = { ...current };
+                      delete next[item.id];
+                      return next;
+                    });
+                    if (item.id === request.id) {
+                      setRequest(null);
+                      setResponse(null);
+                    }
+                  }}>×</button>
                 </div>)}
               </div>}
               <div className="editor-head">
@@ -1991,7 +2028,7 @@ export default function ApiClient({
                     >
                       {response.status} {response.statusText}
                     </strong>
-                    <span>{response.durationMs} ms</span>
+                    <span>{formatDurationMs(response.durationMs)}</span>
                     <span>{bytes(response.sizeBytes)}</span>
                     <button
                       className="secondary response-copy"

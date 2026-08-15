@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import './globals.css';
+import GlobalToast from '@/components/GlobalToast';
 
 export const metadata: Metadata = {
   title: { default: 'RequestLab — APIs move fast', template: '%s · RequestLab' },
@@ -9,5 +10,5 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const nonce = (await headers()).get('x-nonce') ?? undefined;
-  return <html lang="en" suppressHydrationWarning><head><script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('requestlab-theme');var d=t?t==='dark':matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.dataset.theme=d?'dark':'light'}catch(e){}})()` }} /></head><body>{children}</body></html>;
+  return <html lang="en" suppressHydrationWarning><head><script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: `(function(){try{var t=localStorage.getItem('requestlab-theme');var d=t?t==='dark':matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.dataset.theme=d?'dark':'light'}catch(e){}})()` }} /></head><body>{children}<GlobalToast /></body></html>;
 }
