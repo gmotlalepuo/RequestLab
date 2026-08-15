@@ -1,9 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import CodeMirror from "@uiw/react-codemirror";
-import { json } from "@codemirror/lang-json";
-import { EditorView } from "@codemirror/view";
 import Link from "next/link";
 import {
   Box,
@@ -82,13 +79,6 @@ const methods: HttpMethod[] = [
   "HEAD",
   "OPTIONS",
 ];
-const jsonEditorTheme = EditorView.theme({
-  "&": { height: "100%", backgroundColor: "var(--surface-2)", color: "var(--text)" },
-  ".cm-scroller": { overflow: "auto", fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace", lineHeight: "1.65" },
-  ".cm-gutters": { backgroundColor: "var(--surface-2)", color: "var(--muted)", border: "0", borderRight: "1px solid var(--border)" },
-  ".cm-activeLine, .cm-activeLineGutter": { backgroundColor: "color-mix(in srgb, var(--brand) 8%, transparent)" },
-  ".cm-foldPlaceholder": { backgroundColor: "var(--surface-3)", border: "1px solid var(--border)", color: "var(--muted)" },
-});
 const emptyRequest = (
   collectionId: string,
   folderId: string | null,
@@ -3420,6 +3410,8 @@ function BodyEditor({
 }) {
   const modes: BodyMode[] = ["none", "binary", "json", "raw", "form"];
   const [bodyHeight, setBodyHeight] = useState(240);
+  const [bodyJsonPreview, setBodyJsonPreview] = useState(false);
+  const highlightRef = useRef<HTMLPreElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileError, setFileError] = useState("");
   const chooseBinaryFile = async (file: File) => {
@@ -3520,27 +3512,52 @@ function BodyEditor({
           {fileError && <p className="error-text">{fileError}</p>}
         </div>
       )}
+      {request.bodyMode === "json" && (
+        <div className="body-json-actions">
+          <button type="button" className="secondary" onClick={() => setBodyJsonPreview((preview) => !preview)}>
+            {bodyJsonPreview ? "Edit JSON" : "Collapse JSON sections"}
+          </button>
+        </div>
+      )}
       {["json", "raw"].includes(request.bodyMode) && (
-        <div className={`body-code-editor${request.bodyMode === "json" ? " cm-json-editor" : ""}`} style={{ height: bodyHeight }}>
-          {request.bodyMode === "json" ? <CodeMirror
-            value={request.bodyRaw}
-            height="100%"
-            theme={jsonEditorTheme}
-            extensions={[json()]}
-            basicSetup={{ foldGutter: true, lineNumbers: true, highlightActiveLine: true, highlightActiveLineGutter: true }}
-            onChange={(value) => setRequest({ ...request, bodyRaw: value })}
-          /> : <textarea
+        bodyJsonPreview && request.bodyMode === "json" ? (
+          <div className="body-json-preview" style={{ height: bodyHeight }}>
+            <JsonResponseViewer value={request.bodyRaw} />
+          </div>
+        ) : <div className="body-code-editor" style={{ height: bodyHeight }}>
+          {request.bodyMode === "json" && (
+            <pre
+              ref={highlightRef}
+              className="body-highlight"
+              aria-hidden="true"
+            >
+              {sourceJsonTokens(request.bodyRaw)}
+              {request.bodyRaw.endsWith("\n") ? "\n" : null}
+            </pre>
+          )}
+          <textarea
             className={
-              "body-input"
+              request.bodyMode === "json"
+                ? "body-input highlighted"
+                : "body-input"
             }
             aria-label="Request body"
             spellCheck={false}
-            placeholder="Raw request body"
+            placeholder={
+              request.bodyMode === "json"
+                ? '{\n  "key": "value"\n}'
+                : "Raw request body"
+            }
             value={request.bodyRaw}
+            onScroll={(event) => {
+              if (!highlightRef.current) return;
+              highlightRef.current.scrollTop = event.currentTarget.scrollTop;
+              highlightRef.current.scrollLeft = event.currentTarget.scrollLeft;
+            }}
             onChange={(e) =>
               setRequest({ ...request, bodyRaw: e.target.value })
             }
-          />}
+          />
           <div
             className="body-resizer"
             role="separator"
