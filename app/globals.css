@@ -3826,11 +3826,12 @@ html[data-theme="dark"] .tree-method.patch {
 .editor {
   display: flex;
   flex-direction: column;
+  min-height: 0;
   overflow: hidden;
 }
 .editor-head {
   height: 56px;
-  flex: none;
+  flex: 0 0 56px;
   padding: 7px 14px;
   background: var(--surface);
 }
@@ -3872,6 +3873,7 @@ html[data-theme="dark"] .tree-method.patch {
   font-size: 12px;
 }
 .url-row {
+  flex: 0 0 auto;
   margin: 12px 14px 8px;
   border-color: var(--border-strong);
   border-radius: var(--control-radius);
@@ -3915,6 +3917,7 @@ html[data-theme="dark"] .tree-method.patch {
   font-size: 13px;
 }
 .variable-hints {
+  flex: 0 0 auto;
   margin: -1px 14px 7px;
 }
 .variable-chip {
