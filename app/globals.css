@@ -5763,6 +5763,52 @@ html[data-theme="dark"] .app-shell {
   padding-bottom: 48px;
   scroll-padding-bottom: 48px;
 }
+.json-tree {
+  min-width: max-content;
+  padding: 14px 18px 48px;
+  color: var(--text);
+  font: 12px/1.65 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.json-tree details {
+  margin: 0;
+  padding-left: 18px;
+}
+.json-tree > details {
+  padding-left: 0;
+}
+.json-tree summary {
+  min-height: 1.65em;
+  cursor: pointer;
+  list-style: none;
+  outline: 0;
+  white-space: nowrap;
+}
+.json-tree summary::-webkit-details-marker { display: none; }
+.json-tree summary::before {
+  display: inline-block;
+  width: 16px;
+  margin-left: -18px;
+  color: var(--muted);
+  content: "▸";
+  transition: transform 150ms ease-out;
+}
+.json-tree details[open] > summary::before { transform: rotate(90deg); }
+.json-tree summary:focus-visible { outline: 2px solid color-mix(in srgb, var(--brand) 55%, transparent); outline-offset: 2px; border-radius: 3px; }
+.json-tree-count { margin-left: 7px; color: var(--muted); font-size: 10px; }
+.json-tree-collapsed { color: var(--muted); }
+.json-tree details[open] > summary .json-tree-collapsed { display: none; }
+.json-tree-children { padding-left: 18px; }
+.json-tree-row { min-height: 1.65em; white-space: nowrap; }
+.json-tree-close { min-height: 1.65em; }
+.json-tree .json-copy-token { padding: 0; border: 0; background: transparent; font: inherit; }
+.json-tree .json-copy-token:hover { text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
+.body-json-actions { display: flex; justify-content: flex-end; margin: -2px 0 8px; }
+.body-json-actions .secondary { min-height: 30px; font-size: 11px; }
+.body-json-preview { min-height: 140px; overflow: auto; border: 1px solid var(--border); border-radius: var(--control-radius); background: var(--surface-2); }
+.body-json-preview .json-tree { min-width: max-content; }
+@media (prefers-reduced-motion: reduce) {
+  .json-tree summary::before { transition: none; }
+}
 .app-shell .response-content > .header-line:last-child {
   margin-bottom: 24px;
 }
