@@ -5715,6 +5715,45 @@ html[data-theme="dark"] .app-shell {
 .response-format-toolbar { position: sticky; top: 0; z-index: 2; display: flex; padding: 8px 10px; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 94%, transparent); }
 .response-format-toolbar select { min-height: 30px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--text); font: 12px inherit; }
 
+/* Keep the inline response viewport usable at every height. The formatter is
+   fixed within the response panel while the body gets the remaining space and
+   its own scroll position, so the last JSON lines are never clipped. */
+.app-shell .response {
+  min-height: 0;
+  overflow: hidden;
+}
+.app-shell .response-content {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+.app-shell .response-body-viewer {
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+}
+.app-shell .response-body-viewer .response-format-toolbar {
+  flex: 0 0 auto;
+}
+.app-shell .response-body-viewer .json-viewer,
+.app-shell .response-body-viewer .response-html-preview {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+}
+.app-shell .response-body-viewer .json-viewer {
+  padding-bottom: 48px;
+  scroll-padding-bottom: 48px;
+}
+.app-shell .response-content > .header-line:last-child {
+  margin-bottom: 24px;
+}
+
 /* Keep the MCP rail legible in both themes. The rail used to carry a dark-only palette. */
 html[data-theme="light"] .ai-agent,
 html[data-theme="light"] #requestlab-ai-agent { background: var(--surface) !important; color: var(--text) !important; border-color: var(--border) !important; }
