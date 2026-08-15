@@ -472,6 +472,7 @@ export default function ApiClient({
   // the user logs out.
   const [responsesByRequestId, setResponsesByRequestId] = useState<Record<string, ApiResponse>>({});
   const [responseFormat, setResponseFormat] = useState<"JSON" | "XML" | "HTML" | "YAML" | "JavaScript" | "Markdown" | "Raw" | "Hex" | "Base64">("JSON");
+  const [responseHtmlPreview, setResponseHtmlPreview] = useState(false);
   const [responseFullscreen, setResponseFullscreen] = useState(false);
   const [responseActionsOpen, setResponseActionsOpen] = useState(false);
   const [responseHeight, setResponseHeight] = useState(360);
@@ -2067,11 +2068,12 @@ export default function ApiClient({
                     {responseTab === "Body" ? (
                       <div className="response-body-viewer">
                         <div className="response-format-toolbar">
-                          <select aria-label="Response format" value={responseFormat} onChange={(event) => setResponseFormat(event.target.value as typeof responseFormat)}>
+                          <select aria-label="Response format" value={responseFormat} onChange={(event) => { const next = event.target.value as typeof responseFormat; setResponseFormat(next); if (next !== "HTML") setResponseHtmlPreview(false); }}>
                             {["JSON", "XML", "HTML", "YAML", "JavaScript", "Markdown", "Raw", "Hex", "Base64"].map((format) => <option key={format}>{format}</option>)}
                           </select>
+                          {responseFormat === "HTML" && <button type="button" className="secondary response-preview-toggle" onClick={() => setResponseHtmlPreview((current) => !current)}>{responseHtmlPreview ? "Code" : "Preview"}</button>}
                         </div>
-                        <pre className="json-viewer">
+                        {responseFormat === "HTML" && responseHtmlPreview ? <iframe className="response-html-preview" title="Rendered HTML response" sandbox="" srcDoc={response.body} /> : <pre className="json-viewer">
                         <code>
                           {responseFormat === "JSON" ? (jsonTokens(pretty(response.body), async (value) => {
                             try { await navigator.clipboard.writeText(value); notify("Value copied"); }
@@ -2079,7 +2081,7 @@ export default function ApiClient({
                           }) ?? pretty(response.body)) : formatResponseBody(response.body, responseFormat) ||
                             "(empty body)"}
                         </code>
-                        </pre>
+                        </pre>}
                       </div>
                     ) : (
                       response.headers.map((h, i) => (
@@ -2111,8 +2113,8 @@ export default function ApiClient({
             <div className="response-fullscreen-scrim" role="dialog" aria-modal="true" aria-label="Full screen response">
               <section className="response-fullscreen">
                 <header><strong>Response</strong><div><button className="secondary" onClick={async () => { await navigator.clipboard.writeText(response.body); notify("Response body copied"); }}><Copy size={14} /> Copy</button><button className="icon-button" aria-label="Close full screen response" onClick={() => setResponseFullscreen(false)}>×</button></div></header>
-                <div className="response-format-toolbar"><select aria-label="Response format" value={responseFormat} onChange={(event) => setResponseFormat(event.target.value as typeof responseFormat)}>{["JSON", "XML", "HTML", "YAML", "JavaScript", "Markdown", "Raw", "Hex", "Base64"].map((format) => <option key={format}>{format}</option>)}</select></div>
-                <pre className="json-viewer"><code>{responseFormat === "JSON" ? (jsonTokens(pretty(response.body), async (value) => { await navigator.clipboard.writeText(value); notify("Value copied"); }) ?? pretty(response.body)) : formatResponseBody(response.body, responseFormat) || "(empty body)"}</code></pre>
+                <div className="response-format-toolbar"><select aria-label="Response format" value={responseFormat} onChange={(event) => { const next = event.target.value as typeof responseFormat; setResponseFormat(next); if (next !== "HTML") setResponseHtmlPreview(false); }}>{["JSON", "XML", "HTML", "YAML", "JavaScript", "Markdown", "Raw", "Hex", "Base64"].map((format) => <option key={format}>{format}</option>)}</select>{responseFormat === "HTML" && <button type="button" className="secondary response-preview-toggle" onClick={() => setResponseHtmlPreview((current) => !current)}>{responseHtmlPreview ? "Code" : "Preview"}</button>}</div>
+                {responseFormat === "HTML" && responseHtmlPreview ? <iframe className="response-html-preview" title="Rendered HTML response" sandbox="" srcDoc={response.body} /> : <pre className="json-viewer"><code>{responseFormat === "JSON" ? (jsonTokens(pretty(response.body), async (value) => { await navigator.clipboard.writeText(value); notify("Value copied"); }) ?? pretty(response.body)) : formatResponseBody(response.body, responseFormat) || "(empty body)"}</code></pre>}
               </section>
             </div>
           )}
