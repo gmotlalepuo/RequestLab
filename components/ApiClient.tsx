@@ -3,9 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { json } from "@codemirror/lang-json";
-import { syntaxHighlighting, HighlightStyle } from "@codemirror/language";
 import { EditorView } from "@codemirror/view";
-import { tags } from "@lezer/highlight";
 import Link from "next/link";
 import {
   Box,
@@ -86,22 +84,11 @@ const methods: HttpMethod[] = [
 ];
 const jsonEditorTheme = EditorView.theme({
   "&": { height: "100%", backgroundColor: "var(--surface-2)", color: "var(--text)" },
-  ".cm-scroller": { overflow: "auto", fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace", fontSize: "13px", lineHeight: "1.55" },
-  ".cm-content": { padding: "12px 0" },
-  ".cm-line": { padding: "0 12px" },
-  ".cm-gutters": { backgroundColor: "var(--surface-2)", color: "var(--muted)", border: "0", borderRight: "1px solid var(--border)", paddingRight: "4px" },
-  ".cm-gutterElement": { minWidth: "28px", padding: "0 5px" },
+  ".cm-scroller": { overflow: "auto", fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace", lineHeight: "1.65" },
+  ".cm-gutters": { backgroundColor: "var(--surface-2)", color: "var(--muted)", border: "0", borderRight: "1px solid var(--border)" },
   ".cm-activeLine, .cm-activeLineGutter": { backgroundColor: "color-mix(in srgb, var(--brand) 8%, transparent)" },
-  ".cm-foldPlaceholder": { backgroundColor: "var(--surface-3)", border: "1px solid var(--border)", borderRadius: "4px", color: "var(--muted)", padding: "0 4px" },
+  ".cm-foldPlaceholder": { backgroundColor: "var(--surface-3)", border: "1px solid var(--border)", color: "var(--muted)" },
 });
-const jsonEditorHighlight = syntaxHighlighting(HighlightStyle.define([
-  { tag: tags.propertyName, color: "#0369a1" },
-  { tag: tags.string, color: "#c2410c" },
-  { tag: tags.number, color: "#7c3aed" },
-  { tag: tags.bool, color: "#047857" },
-  { tag: tags.null, color: "#64748b", fontStyle: "italic" },
-  { tag: tags.punctuation, color: "var(--text)" },
-]));
 const emptyRequest = (
   collectionId: string,
   folderId: string | null,
@@ -3539,7 +3526,7 @@ function BodyEditor({
             value={request.bodyRaw}
             height="100%"
             theme={jsonEditorTheme}
-            extensions={[json(), jsonEditorHighlight]}
+            extensions={[json()]}
             basicSetup={{ foldGutter: true, lineNumbers: true, highlightActiveLine: true, highlightActiveLineGutter: true }}
             onChange={(value) => setRequest({ ...request, bodyRaw: value })}
           /> : <textarea
