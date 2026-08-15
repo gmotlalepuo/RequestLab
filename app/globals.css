@@ -658,6 +658,15 @@ textarea {
 .body-code-editor .body-input.highlighted::selection {
   background: rgba(74, 112, 255, 0.28);
 }
+.body-code-editor.cm-json-editor .cm-editor {
+  height: calc(100% - 8px);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+}
+.body-code-editor.cm-json-editor .cm-scroller {
+  padding-bottom: 12px;
+}
 .body-resizer {
   position: absolute;
   z-index: 3;
