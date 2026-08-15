@@ -479,6 +479,7 @@ export default function ApiClient({
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [busyLabel, setBusyLabel] = useState("");
   const [busyProgress, setBusyProgress] = useState<number | null>(null);
@@ -1426,17 +1427,27 @@ export default function ApiClient({
             <span className="sync-dot" /> Synced
           </span>
           <button
-            className="logout"
+            className={`logout${isLoggingOut ? " is-loading" : ""}`}
+            disabled={isLoggingOut}
+            aria-busy={isLoggingOut}
             onClick={async () => {
+              if (isLoggingOut) return;
+              setIsLoggingOut(true);
               setRequestHistory([]);
               setResponsesByRequestId({});
               setResponse(null);
-              await createClient().auth.signOut();
-              window.location.assign("/");
+              try {
+                const { error: signOutError } = await createClient().auth.signOut();
+                if (signOutError) throw signOutError;
+                window.location.assign("/");
+              } catch (signOutError) {
+                setIsLoggingOut(false);
+                setError(signOutError instanceof Error ? signOutError.message : "Could not log out. Please try again.");
+              }
             }}
           >
-            <LogOut size={16} />
-            <span>Log out</span>
+            {isLoggingOut ? <LoaderCircle className="spin" size={16} aria-hidden="true" /> : <LogOut size={16} aria-hidden="true" />}
+            <span>{isLoggingOut ? "Logging out…" : "Log out"}</span>
           </button>
         </div>
       </header>

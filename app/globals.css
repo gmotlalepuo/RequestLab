@@ -5506,6 +5506,19 @@ html[data-theme="dark"] .portal-alert.success { background: #12352d; color: #74d
 .app-shell .topbar {
   box-shadow: none;
 }
+.app-shell .logout.is-loading {
+  cursor: wait;
+  opacity: 0.78;
+  background: color-mix(in srgb, var(--surface-2) 72%, transparent);
+}
+.app-shell .logout.is-loading .spin {
+  animation: spin 0.8s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-shell .logout.is-loading .spin {
+    animation: none;
+  }
+}
 .app-shell .panel-heading,
 .app-shell .sidebar-footer {
   background: color-mix(in srgb, var(--surface-2) 72%, var(--surface));
