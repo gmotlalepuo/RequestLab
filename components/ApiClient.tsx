@@ -162,6 +162,54 @@ const jsonTokens = (value: string, onCopy?: (value: string) => void) => {
     return null;
   }
 };
+type JsonTreeNodeProps = {
+  value: unknown;
+  label?: string;
+  depth: number;
+  onCopy?: (value: string) => void;
+};
+
+const jsonPrimitive = (value: unknown, onCopy?: (value: string) => void) => {
+  const type = value === null ? "null" : typeof value === "string" ? "string" : typeof value === "boolean" ? "boolean" : "number";
+  const display = typeof value === "string" ? JSON.stringify(value) : String(value);
+  const token = <span className={`json-${type}`}>{display}</span>;
+  if (!onCopy) return token;
+  return <button type="button" className={`json-copy-token json-${type}`} title="Copy value" onClick={() => onCopy(String(value))}>{token}</button>;
+};
+
+const JsonTreeNode = ({ value, label, depth, onCopy }: JsonTreeNodeProps) => {
+  const isObject = value !== null && typeof value === "object";
+  if (!isObject) {
+    return <div className="json-tree-row">{label !== undefined && <><span className="json-key">{JSON.stringify(label)}</span><span>: </span></>}{jsonPrimitive(value, onCopy)}</div>;
+  }
+  const entries = Array.isArray(value) ? value.map((item, index) => [String(index), item] as const) : Object.entries(value as Record<string, unknown>);
+  const opening = Array.isArray(value) ? "[" : "{";
+  const closing = Array.isArray(value) ? "]" : "}";
+  return (
+    <details className="json-tree-node" open={depth < 2}>
+      <summary>
+        {label !== undefined && <><span className="json-key">{JSON.stringify(label)}</span><span>: </span></>}
+        <span className="json-brace">{opening}</span>
+        <span className="json-tree-count">{entries.length} {entries.length === 1 ? "item" : "items"}</span>
+        <span className="json-tree-collapsed"> … {closing}</span>
+      </summary>
+      <div className="json-tree-children">
+        {entries.map(([key, item]) => <JsonTreeNode key={key} value={item} label={Array.isArray(value) ? undefined : key} depth={depth + 1} onCopy={onCopy} />)}
+      </div>
+      <div className="json-tree-close">{closing}</div>
+    </details>
+  );
+};
+
+const JsonResponseViewer = ({ value, onCopy }: { value: string; onCopy?: (value: string) => void }) => {
+  try {
+    const formatted = pretty(value);
+    const parsed = JSON.parse(formatted) as unknown;
+    return <div className="json-tree" aria-label="Collapsible JSON response"><JsonTreeNode value={parsed} depth={0} onCopy={onCopy} /></div>;
+  } catch {
+    return <>{jsonTokens(value, onCopy) ?? pretty(value)}</>;
+  }
+};
 const sourceJsonTokens = (value: string) => {
   const pattern =
     /("(?:\\u[a-fA-F0-9]{4}|\\[^u]|[^\\"])*"\s*:?)|\b(true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g;
@@ -2086,10 +2134,10 @@ export default function ApiClient({
                         </div>
                         {responseFormat === "HTML" && responseHtmlPreview ? <iframe className="response-html-preview" title="Rendered HTML response" sandbox="" srcDoc={response.body} /> : <pre className="json-viewer">
                         <code>
-                          {responseFormat === "JSON" ? (jsonTokens(pretty(response.body), async (value) => {
+                          {responseFormat === "JSON" ? (<JsonResponseViewer value={response.body} onCopy={async (value) => {
                             try { await navigator.clipboard.writeText(value); notify("Value copied"); }
                             catch { setError("Could not copy this value. Check browser clipboard permission."); }
-                          }) ?? pretty(response.body)) : formatResponseBody(response.body, responseFormat) ||
+                          }} />) : formatResponseBody(response.body, responseFormat) ||
                             "(empty body)"}
                         </code>
                         </pre>}
@@ -2125,7 +2173,7 @@ export default function ApiClient({
               <section className="response-fullscreen">
                 <header><strong>Response</strong><div><button className="secondary" onClick={async () => { await navigator.clipboard.writeText(response.body); notify("Response body copied"); }}><Copy size={14} /> Copy</button><button className="icon-button" aria-label="Close full screen response" onClick={() => setResponseFullscreen(false)}>×</button></div></header>
                 <div className="response-format-toolbar"><select aria-label="Response format" value={responseFormat} onChange={(event) => { const next = event.target.value as typeof responseFormat; setResponseFormat(next); if (next !== "HTML") setResponseHtmlPreview(false); }}>{["JSON", "XML", "HTML", "YAML", "JavaScript", "Markdown", "Raw", "Hex", "Base64"].map((format) => <option key={format}>{format}</option>)}</select>{responseFormat === "HTML" && <button type="button" className="secondary response-preview-toggle" onClick={() => setResponseHtmlPreview((current) => !current)}>{responseHtmlPreview ? "Code" : "Preview"}</button>}</div>
-                {responseFormat === "HTML" && responseHtmlPreview ? <iframe className="response-html-preview" title="Rendered HTML response" sandbox="" srcDoc={response.body} /> : <pre className="json-viewer"><code>{responseFormat === "JSON" ? (jsonTokens(pretty(response.body), async (value) => { await navigator.clipboard.writeText(value); notify("Value copied"); }) ?? pretty(response.body)) : formatResponseBody(response.body, responseFormat) || "(empty body)"}</code></pre>}
+                {responseFormat === "HTML" && responseHtmlPreview ? <iframe className="response-html-preview" title="Rendered HTML response" sandbox="" srcDoc={response.body} /> : <pre className="json-viewer"><code>{responseFormat === "JSON" ? <JsonResponseViewer value={response.body} onCopy={async (value) => { await navigator.clipboard.writeText(value); notify("Value copied"); }} /> : formatResponseBody(response.body, responseFormat) || "(empty body)"}</code></pre>}
               </section>
             </div>
           )}
@@ -3362,6 +3410,7 @@ function BodyEditor({
 }) {
   const modes: BodyMode[] = ["none", "binary", "json", "raw", "form"];
   const [bodyHeight, setBodyHeight] = useState(240);
+  const [bodyJsonPreview, setBodyJsonPreview] = useState(false);
   const highlightRef = useRef<HTMLPreElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileError, setFileError] = useState("");
@@ -3463,8 +3512,19 @@ function BodyEditor({
           {fileError && <p className="error-text">{fileError}</p>}
         </div>
       )}
+      {request.bodyMode === "json" && (
+        <div className="body-json-actions">
+          <button type="button" className="secondary" onClick={() => setBodyJsonPreview((preview) => !preview)}>
+            {bodyJsonPreview ? "Edit JSON" : "Collapse JSON sections"}
+          </button>
+        </div>
+      )}
       {["json", "raw"].includes(request.bodyMode) && (
-        <div className="body-code-editor" style={{ height: bodyHeight }}>
+        bodyJsonPreview && request.bodyMode === "json" ? (
+          <div className="body-json-preview" style={{ height: bodyHeight }}>
+            <JsonResponseViewer value={request.bodyRaw} />
+          </div>
+        ) : <div className="body-code-editor" style={{ height: bodyHeight }}>
           {request.bodyMode === "json" && (
             <pre
               ref={highlightRef}
